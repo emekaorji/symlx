@@ -3,6 +3,8 @@ import path from "node:path";
 
 import type { PackageJson } from "../core/types";
 
+// npm allows `bin` as a string; in that form the command name defaults to package name
+// (without scope for scoped packages).
 function inferBinName(packageName: string | undefined): string {
   if (!packageName) {
     throw new Error("package.json is missing `name`, needed when `bin` is a string");
@@ -24,6 +26,8 @@ function readJsonFile<T>(filePath: string): T {
   return JSON.parse(raw) as T;
 }
 
+// Loads and validates all bin entries for the current project.
+// Returned map is command name => absolute target file path.
 export function readBins(cwd: string): Map<string, string> {
   const packageJsonPath = path.join(cwd, "package.json");
   if (!fs.existsSync(packageJsonPath)) {
@@ -49,6 +53,7 @@ export function readBins(cwd: string): Map<string, string> {
     throw new Error("no bin entries found");
   }
 
+  // Fail fast if package.json points to non-existing executables.
   for (const [name, target] of bins.entries()) {
     if (!fs.existsSync(target)) {
       throw new Error(`bin target for "${name}" does not exist: ${target}`);

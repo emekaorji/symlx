@@ -1,5 +1,6 @@
 const PREFIX = "[zlx]";
 
+// Thin logging wrappers keep formatting centralized and easy to swap later.
 export function info(message: string): void {
   process.stdout.write(`${PREFIX} ${message}\n`);
 }

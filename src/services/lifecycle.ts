@@ -1,5 +1,7 @@
 type CleanupFn = () => void;
 
+// Registers robust process-exit handling so linked commands are removed reliably.
+// Cleanup is idempotent and can be triggered by normal exit, signals, or fatal errors.
 export function registerLifecycleCleanup(cleanup: CleanupFn): void {
   let cleaned = false;
 
@@ -11,6 +13,7 @@ export function registerLifecycleCleanup(cleanup: CleanupFn): void {
     cleanup();
   };
 
+  // Normal termination path.
   process.on("exit", runCleanup);
 
   const onSignal = (): void => {
@@ -18,10 +21,12 @@ export function registerLifecycleCleanup(cleanup: CleanupFn): void {
     process.exit(0);
   };
 
+  // Common interactive stop signals.
   process.on("SIGINT", onSignal);
   process.on("SIGTERM", onSignal);
   process.on("SIGHUP", onSignal);
 
+  // Fatal process events still attempt cleanup before exiting with failure.
   process.on("uncaughtException", (error) => {
     process.stderr.write(`[zlx] uncaught exception: ${String(error)}\n`);
     runCleanup();

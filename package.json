@@ -1,10 +1,10 @@
 {
-  "name": "zlx",
+  "name": "linkx",
   "version": "0.1.0",
   "description": "Temporary local CLI bin linker",
   "license": "MIT",
   "bin": {
-    "zlx": "dist/cli.js"
+    "linkx": "dist/cli.js"
   },
   "files": [
     "dist",

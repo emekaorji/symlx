@@ -2,6 +2,8 @@ import prompts from "prompts";
 
 import type { CollisionDecision, LinkConflict } from "../core/types";
 
+// Interactive collision resolver for --collision prompt.
+// Returning "abort" bubbles up as an error to stop the current serve run.
 export async function promptCollisionDecision(conflict: LinkConflict): Promise<CollisionDecision> {
   const response = await prompts(
     {

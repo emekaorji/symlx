@@ -1,0 +1,35 @@
+{
+  "name": "zlx",
+  "version": "0.1.0",
+  "description": "Temporary local CLI bin linker",
+  "license": "MIT",
+  "bin": {
+    "zlx": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && chmod +x dist/cli.js",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "prepack": "pnpm run build"
+  },
+  "keywords": [
+    "cli",
+    "bin",
+    "dev"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/prompts": "^2.4.9",
+    "typescript": "^5.9.0"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "prompts": "^2.4.2"
+  }
+}

@@ -1,12 +1,10 @@
 import { z } from 'zod';
 
-const collisionPolicySchema = z.enum(['prompt', 'skip', 'fail', 'overwrite']);
-
-const serveOptionsSchema = z.object({
-  binDir: z.string().trim().min(1).optional(),
-  collision: collisionPolicySchema,
-  nonInteractive: z.boolean(),
-});
+import {
+  configFileOptionsSchema,
+  type ConfigFileOptions,
+  type Options,
+} from './schema';
 
 function formatIssues(error: z.ZodError): string {
   const details = error.issues
@@ -18,16 +16,25 @@ function formatIssues(error: z.ZodError): string {
   return details || 'invalid input';
 }
 
-export function validate<TSchema extends z.ZodTypeAny>(
+export function validateInlineOptions<TSchema extends z.ZodTypeAny>(
   schema: TSchema,
   input: unknown,
   label = 'input',
 ): z.infer<TSchema> {
-  const result = schema.safeParse(input);
+  const result = schema.safeParse(input || {});
   if (!result.success) {
     throw new Error(`invalid ${label}: ${formatIssues(result.error)}`);
   }
   return result.data;
 }
 
-export { collisionPolicySchema, serveOptionsSchema };
+export function validateConfigFileOptions(
+  input: Options | undefined,
+  label = 'input',
+): ConfigFileOptions {
+  const result = configFileOptionsSchema.safeParse(input || {});
+  if (!result.success) {
+    throw new Error(`invalid ${label}: ${formatIssues(result.error)}`);
+  }
+  return result.data;
+}

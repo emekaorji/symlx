@@ -1,15 +1,17 @@
-import fs from "node:fs";
-import path from "node:path";
+import fs from 'node:fs';
+import path from 'node:path';
 
 import type {
   CollisionDecision,
   CollisionPolicy,
   LinkConflict,
-  LinkCreationResult
-} from "../core/types";
+  LinkCreationResult,
+} from '../lib/types';
 
 // Injected prompt/decision hook used only when collision policy is interactive.
-export type CollisionResolver = (conflict: LinkConflict) => Promise<CollisionDecision>;
+export type CollisionResolver = (
+  conflict: LinkConflict,
+) => Promise<CollisionDecision>;
 
 type ExistingNode = {
   stats: fs.Stats;
@@ -22,7 +24,7 @@ function tryLstat(filePath: string): fs.Stats | undefined {
     return fs.lstatSync(filePath);
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
-    if (code === "ENOENT") {
+    if (code === 'ENOENT') {
       return undefined;
     }
     throw error;
@@ -60,7 +62,12 @@ function removeExistingNode(linkPath: string, node: ExistingNode): void {
 }
 
 // Normalizes filesystem state into a user-facing collision descriptor.
-function toConflict(name: string, linkPath: string, target: string, node: ExistingNode): LinkConflict {
+function toConflict(
+  name: string,
+  linkPath: string,
+  target: string,
+  node: ExistingNode,
+): LinkConflict {
   if (node.stats.isSymbolicLink()) {
     return {
       name,
@@ -68,9 +75,9 @@ function toConflict(name: string, linkPath: string, target: string, node: Existi
       target,
       reason: node.existingTarget
         ? `already linked to ${node.existingTarget}`
-        : "already exists as symlink",
+        : 'already exists as symlink',
       existingTarget: node.existingTarget,
-      isSymlink: true
+      isSymlink: true,
     };
   }
 
@@ -78,8 +85,8 @@ function toConflict(name: string, linkPath: string, target: string, node: Existi
     name,
     linkPath,
     target,
-    reason: "already exists as a file",
-    isSymlink: false
+    reason: 'already exists as a file',
+    isSymlink: false,
   };
 }
 
@@ -103,27 +110,38 @@ export async function createLinks(params: {
       const conflict = toConflict(name, linkPath, target, existingNode);
 
       // Reusing the exact same link is always a no-op.
-      if (conflict.existingTarget && path.resolve(conflict.existingTarget) === path.resolve(target)) {
-        skipped.push({ name, linkPath, reason: "already linked to requested target" });
+      if (
+        conflict.existingTarget &&
+        path.resolve(conflict.existingTarget) === path.resolve(target)
+      ) {
+        skipped.push({
+          name,
+          linkPath,
+          reason: 'already linked to requested target',
+        });
         continue;
       }
 
       let decision: CollisionDecision;
-      if (policy === "skip") {
-        decision = "skip";
-      } else if (policy === "overwrite") {
-        decision = "overwrite";
-      } else if (policy === "fail") {
-        throw new Error(`command "${name}" conflicts at ${linkPath}: ${conflict.reason}`);
+      if (policy === 'skip') {
+        decision = 'skip';
+      } else if (policy === 'overwrite') {
+        decision = 'overwrite';
+      } else if (policy === 'fail') {
+        throw new Error(
+          `command "${name}" conflicts at ${linkPath}: ${conflict.reason}`,
+        );
       } else {
-        decision = collisionResolver ? await collisionResolver(conflict) : "skip";
+        decision = collisionResolver
+          ? await collisionResolver(conflict)
+          : 'skip';
       }
 
-      if (decision === "abort") {
+      if (decision === 'abort') {
         throw new Error(`aborted on collision for command "${name}"`);
       }
 
-      if (decision === "skip") {
+      if (decision === 'skip') {
         skipped.push({ name, linkPath, reason: conflict.reason });
         continue;
       }

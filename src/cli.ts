@@ -2,9 +2,8 @@
 
 import { Command } from 'commander';
 
-import { runServe } from './commands/serve';
-import { serveOptionsSchema, validate } from './lib/validators';
 import * as log from './ui/logger';
+import { serveCommand } from './commands/serve';
 
 async function main(): Promise<void> {
   // Commander orchestrates top-level commands/options and help output.
@@ -25,22 +24,7 @@ async function main(): Promise<void> {
       'prompt',
     )
     .option('--non-interactive', 'disable interactive prompts', false)
-    .action(
-      async (options: {
-        binDir?: string;
-        collision: string;
-        nonInteractive: boolean;
-      }) => {
-        const validatedOptions = validate(
-          serveOptionsSchema,
-          options,
-          'serve options',
-        );
-
-        // Delegate all runtime behavior to the command module.
-        await runServe(validatedOptions);
-      },
-    );
+    .action(serveCommand);
 
   await program.parseAsync(process.argv);
 }

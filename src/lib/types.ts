@@ -20,10 +20,10 @@ export type SessionRecord = {
 };
 
 // Strategies for handling existing command names in the target bin directory.
-export type CollisionPolicy = "prompt" | "skip" | "fail" | "overwrite";
+export type CollisionPolicy = 'prompt' | 'skip' | 'fail' | 'overwrite';
 
 // Runtime decision returned by an interactive collision resolver.
-export type CollisionDecision = "skip" | "overwrite" | "abort";
+export type CollisionDecision = 'skip' | 'overwrite' | 'abort';
 
 // Details about an existing command that blocks link creation.
 export type LinkConflict = {
@@ -50,7 +50,6 @@ export type LinkCreationResult = {
 
 // Canonical directories used by symlx at runtime.
 export type SymlxPaths = {
-  rootDir: string;
   binDir: string;
   sessionDir: string;
 };

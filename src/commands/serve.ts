@@ -1,24 +1,19 @@
-import type { CollisionPolicy, SessionRecord } from "../core/types";
-import { getSymlxPaths, pathContainsDir } from "../core/paths";
-import { createLinks } from "../services/link-manager";
-import { registerLifecycleCleanup } from "../services/lifecycle";
-import { readBins } from "../services/package-bins";
+import type { SessionRecord } from '../lib/types';
+import { getSymlxPaths, pathContainsDir } from '../lib/paths';
+import { createLinks } from '../services/link-manager';
+import { registerLifecycleCleanup } from '../services/lifecycle';
+import { readBins } from '../services/package-bins';
 import {
   cleanupSession,
   cleanupStaleSessions,
   createSessionFilePath,
   ensureSymlxDirectories,
-  persistSession
-} from "../services/session-store";
-import { promptCollisionDecision } from "../ui/collision-prompt";
-import * as log from "../ui/logger";
-
-// Options normalized by the command layer before entering the core serve workflow.
-export type ServeOptions = {
-  binDir?: string;
-  collision: CollisionPolicy;
-  nonInteractive: boolean;
-};
+  persistSession,
+} from '../services/session-store';
+import { promptCollisionDecision } from '../ui/collision-prompt';
+import * as log from '../ui/logger';
+import { resolveOptions } from '../lib/options';
+import { serveInlineOptionsSchema, type Options } from '../lib/schema';
 
 // Prompts require an interactive terminal; scripts/CI should avoid prompt mode.
 function isInteractiveSession(): boolean {
@@ -30,20 +25,25 @@ function isInteractiveSession(): boolean {
 // 2) create links
 // 3) persist session
 // 4) keep process alive and cleanup on exit
-export async function runServe(options: ServeOptions): Promise<void> {
+async function run(options: Options): Promise<void> {
   const cwd = process.cwd();
   const paths = getSymlxPaths(options.binDir);
 
   // Prepare runtime directories and recover stale sessions from previous abnormal exits.
-  ensureSymlxDirectories(paths.binDir, paths.sessionDir);
   cleanupStaleSessions(paths.sessionDir);
+  ensureSymlxDirectories(paths.binDir, paths.sessionDir);
 
   const bins = readBins(cwd);
 
   // Prompt policy only works when we can interact with a TTY.
-  const usePrompts = options.collision === "prompt" && !options.nonInteractive && isInteractiveSession();
-  if (options.collision === "prompt" && !usePrompts) {
-    log.warn("prompt collision mode requested but session is non-interactive; falling back to skip");
+  const usePrompts =
+    options.collision === 'prompt' &&
+    !options.nonInteractive &&
+    isInteractiveSession();
+  if (options.collision === 'prompt' && !usePrompts) {
+    log.warn(
+      'prompt collision mode requested but session is non-interactive; falling back to skip',
+    );
   }
 
   // Link creation returns both successful links and explicit skips.
@@ -51,11 +51,11 @@ export async function runServe(options: ServeOptions): Promise<void> {
     bins,
     binDir: paths.binDir,
     policy: options.collision,
-    collisionResolver: usePrompts ? promptCollisionDecision : undefined
+    collisionResolver: usePrompts ? promptCollisionDecision : undefined,
   });
 
   if (linkResult.created.length === 0) {
-    throw new Error("no links were created");
+    throw new Error('no links were created');
   }
 
   // Session file is the source of truth for cleaning this exact run's links.
@@ -64,7 +64,7 @@ export async function runServe(options: ServeOptions): Promise<void> {
     pid: process.pid,
     cwd,
     createdAt: new Date().toISOString(),
-    links: linkResult.created
+    links: linkResult.created,
   };
   persistSession(sessionPath, sessionRecord);
 
@@ -73,7 +73,9 @@ export async function runServe(options: ServeOptions): Promise<void> {
     cleanupSession(sessionPath, sessionRecord.links);
   });
 
-  log.info(`linked ${linkResult.created.length} command(s) into ${paths.binDir}`);
+  log.info(
+    `linked ${linkResult.created.length} command(s) into ${paths.binDir}`,
+  );
   for (const link of linkResult.created) {
     log.info(`${link.name} -> ${link.target}`);
   }
@@ -83,13 +85,21 @@ export async function runServe(options: ServeOptions): Promise<void> {
   }
 
   if (!pathContainsDir(process.env.PATH, paths.binDir)) {
-    log.info(`add this to your shell config if needed:\nexport PATH="${paths.binDir}:$PATH"`);
+    log.info(
+      `add this to your shell config if needed:\nexport PATH="${paths.binDir}:$PATH"`,
+    );
   }
 
-  log.info("running. press Ctrl+C to cleanup links.");
+  log.info('running. press Ctrl+C to cleanup links.');
 
   // Keep process alive indefinitely; lifecycle handlers handle termination and cleanup.
   await new Promise<void>(() => {
     setInterval(() => undefined, 60_000);
   });
+}
+
+export function serveCommand(inlineOptions: unknown) {
+  const options = resolveOptions(serveInlineOptionsSchema, inlineOptions);
+
+  return run(options);
 }

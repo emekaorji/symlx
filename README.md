@@ -1,20 +1,20 @@
-# zlx
+# symlx
 
 Temporary CLI bin linker for local development.
 
 ## What it does
 
-`zlx serve` reads the current project's `package.json` `bin` entries and symlinks them into:
+`symlx serve` reads the current project's `package.json` `bin` entries and symlinks them into:
 
-`~/.zlx/bin`
+`~/.symlx/bin`
 
-While `zlx serve` is running, those commands can be used from anywhere (if `~/.zlx/bin` is on your `PATH`).
+While `symlx serve` is running, those commands can be used from anywhere (if `~/.symlx/bin` is on your `PATH`).
 
 When the process exits, it removes only the links it created.
 
 ## Command framework and structure
 
-`zlx` uses:
+`symlx` uses:
 
 - `commander` for command orchestration and typed options.
 - `prompts` for interactive/TUI collision handling.
@@ -29,30 +29,30 @@ Project layout:
 ## Usage
 
 ```bash
-npx zlx serve
+npx symlx serve
 ```
 
 or if installed globally:
 
 ```bash
-zlx serve
+symlx serve
 ```
 
 ### Serve options
 
 ```bash
-zlx serve --collision prompt
-zlx serve --collision skip
-zlx serve --collision fail
-zlx serve --collision overwrite
-zlx serve --non-interactive
-zlx serve --bin-dir /custom/bin
+symlx serve --collision prompt
+symlx serve --collision skip
+symlx serve --collision fail
+symlx serve --collision overwrite
+symlx serve --non-interactive
+symlx serve --bin-dir /custom/bin
 ```
 
-If your shell does not already include `~/.zlx/bin`, add:
+If your shell does not already include `~/.symlx/bin`, add:
 
 ```bash
-export PATH="$HOME/.zlx/bin:$PATH"
+export PATH="$HOME/.symlx/bin:$PATH"
 ```
 
 ## Notes

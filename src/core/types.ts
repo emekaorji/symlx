@@ -4,7 +4,7 @@ export type PackageJson = {
   bin?: string | Record<string, string>;
 };
 
-// A symlink created by zlx for a single command name.
+// A symlink created by symlx for a single command name.
 export type LinkRecord = {
   name: string;
   linkPath: string;
@@ -35,7 +35,7 @@ export type LinkConflict = {
   isSymlink: boolean;
 };
 
-// A command that zlx intentionally did not link.
+// A command that symlx intentionally did not link.
 export type LinkSkip = {
   name: string;
   linkPath: string;
@@ -48,8 +48,8 @@ export type LinkCreationResult = {
   skipped: LinkSkip[];
 };
 
-// Canonical directories used by zlx at runtime.
-export type ZlxPaths = {
+// Canonical directories used by symlx at runtime.
+export type SymlxPaths = {
   rootDir: string;
   binDir: string;
   sessionDir: string;

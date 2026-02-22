@@ -64,7 +64,7 @@ function cleanupLinks(links: LinkRecord[]): void {
 }
 
 // Ensures runtime directories exist before linking/saving sessions.
-export function ensureZlxDirectories(binDir: string, sessionDir: string): void {
+export function ensureSymlxDirectories(binDir: string, sessionDir: string): void {
   fs.mkdirSync(binDir, { recursive: true });
   fs.mkdirSync(sessionDir, { recursive: true });
 }

@@ -1,4 +1,4 @@
-const PREFIX = "[zlx]";
+const PREFIX = "[symlx]";
 
 // Thin logging wrappers keep formatting centralized and easy to swap later.
 export function info(message: string): void {

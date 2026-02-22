@@ -1,10 +1,10 @@
 {
-  "name": "linkx",
+  "name": "symlx",
   "version": "0.1.0",
   "description": "Temporary local CLI bin linker",
   "license": "MIT",
   "bin": {
-    "linkx": "dist/cli.js"
+    "symlx": "dist/cli.js"
   },
   "files": [
     "dist",

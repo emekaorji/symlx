@@ -1,5 +1,5 @@
 import type { CollisionPolicy, SessionRecord } from "../core/types";
-import { getZlxPaths, pathContainsDir } from "../core/paths";
+import { getSymlxPaths, pathContainsDir } from "../core/paths";
 import { createLinks } from "../services/link-manager";
 import { registerLifecycleCleanup } from "../services/lifecycle";
 import { readBins } from "../services/package-bins";
@@ -7,7 +7,7 @@ import {
   cleanupSession,
   cleanupStaleSessions,
   createSessionFilePath,
-  ensureZlxDirectories,
+  ensureSymlxDirectories,
   persistSession
 } from "../services/session-store";
 import { promptCollisionDecision } from "../ui/collision-prompt";
@@ -25,17 +25,17 @@ function isInteractiveSession(): boolean {
   return Boolean(process.stdin.isTTY && process.stdout.isTTY);
 }
 
-// Main zlx behavior:
+// Main symlx behavior:
 // 1) resolve bins from package.json
 // 2) create links
 // 3) persist session
 // 4) keep process alive and cleanup on exit
 export async function runServe(options: ServeOptions): Promise<void> {
   const cwd = process.cwd();
-  const paths = getZlxPaths(options.binDir);
+  const paths = getSymlxPaths(options.binDir);
 
   // Prepare runtime directories and recover stale sessions from previous abnormal exits.
-  ensureZlxDirectories(paths.binDir, paths.sessionDir);
+  ensureSymlxDirectories(paths.binDir, paths.sessionDir);
   cleanupStaleSessions(paths.sessionDir);
 
   const bins = readBins(cwd);

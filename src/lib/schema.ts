@@ -43,10 +43,7 @@ const binEntriesToRecordSchema = z
 // -------------------------------------------
 
 const packageJSONOptionsSchema = z.object({
-  bin: binRecordSchema.optional().catch((ctx) => {
-    console.log(ctx.issues);
-    return undefined;
-  }),
+  bin: binRecordSchema.optional(),
 });
 
 // -------------------------------------------

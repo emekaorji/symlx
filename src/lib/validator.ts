@@ -20,12 +20,12 @@ function formatIssues(error: z.ZodError): string {
 
 export function validatePackageJSONOptions(
   input: { bin: Record<string, string> } | undefined,
-): PackageJSONOptions {
+): PackageJSONOptions & { issues: string[] } {
   const result = packageJSONOptionsSchema.safeParse(input || {});
   if (!result.success) {
-    return { bin: {} };
+    return { bin: {}, issues: result.error.issues.map((i) => i.message) };
   }
-  return result.data;
+  return { ...result.data, issues: [] };
 }
 
 export function validateConfigFileOptions(

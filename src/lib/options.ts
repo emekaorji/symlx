@@ -71,10 +71,12 @@ export function resolveOptions<TSchema extends z.ZodTypeAny>(
 ): Options {
   // Load the bin from package.json
   const packageJSONOptions = loadPackageJSONOptions(cwd);
-  console.log(packageJSONOptions);
   const validatedPackageJSONOptions =
     validatePackageJSONOptions(packageJSONOptions);
-  console.log(validatedPackageJSONOptions);
+  const issues = [
+    ...packageJSONOptions.issues,
+    ...validatedPackageJSONOptions.issues,
+  ];
 
   // Load and validate the options from the config file,
   // silently overriding invalid non-critical values with defaults or inline based on order of priority
@@ -108,14 +110,14 @@ export function resolveOptions<TSchema extends z.ZodTypeAny>(
     finalOptions.binResolutionStrategy,
   );
 
-  console.log(resolvedBin);
-
   const finalfinalOptionsIPromise = {
     ...finalOptions,
     bin: withCwdPrefixedBin(cwd, resolvedBin),
   };
 
   if (!Object.entries(finalfinalOptionsIPromise.bin).length) {
+    if (issues.length) throw new Error(issues[0]);
+
     throw new Error(
       [
         'no bin entries found. add at least one bin in any of these places:',

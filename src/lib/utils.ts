@@ -44,11 +44,13 @@ function inferBinName(packageName: string | undefined): string | undefined {
 // Returned map is command name => absolute target file path.
 export function loadPackageJSONOptions(cwd: string): {
   bin: Record<string, string>;
+  issues: string[];
 } {
   const packageJsonPath = path.join(cwd, 'package.json');
   if (!fs.existsSync(packageJsonPath)) {
     return {
       bin: {},
+      issues: [],
     };
   }
 
@@ -56,15 +58,21 @@ export function loadPackageJSONOptions(cwd: string): {
   if (!packageJson || !packageJson.bin) {
     return {
       bin: {},
+      issues: [],
     };
   }
 
   const bin: Record<string, string> = {};
+  const issues = [];
 
   if (typeof packageJson.bin === 'string') {
     const inferredBinName = inferBinName(packageJson.name);
     if (inferredBinName) {
       bin[inferredBinName] = packageJson.bin;
+    } else {
+      issues.push(
+        'bin field is a string, but could not infer name, set a valid package.json "name"',
+      );
     }
   } else {
     for (const [name, relTarget] of Object.entries(packageJson.bin)) {
@@ -72,7 +80,7 @@ export function loadPackageJSONOptions(cwd: string): {
     }
   }
 
-  return { bin };
+  return { bin, issues };
 }
 
 // Session files are best-effort state; deletion failure should not fail the command.

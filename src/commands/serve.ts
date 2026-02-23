@@ -78,10 +78,11 @@ async function run(options: Options): Promise<void> {
     cleanupSession(sessionPath, sessionRecord.links);
   });
 
+  const createdLinks = linkResult.created;
   log.info(
-    `linked ${linkResult.created.length} command(s) into ${options.binDir}`,
+    `linked ${createdLinks.length} command${createdLinks.length > 1 ? 's' : ''} into ${options.binDir}`,
   );
-  for (const link of linkResult.created) {
+  for (const link of createdLinks) {
     log.info(`${link.name} -> ${link.target}`);
   }
 

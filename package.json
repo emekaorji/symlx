@@ -9,14 +9,13 @@
   },
   "files": [
     "dist",
-    "README.md",
-    "scripts"
+    "README.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json && chmod +x dist/cli.js",
     "watch": "tsc -p tsconfig.json --watch --preserveWatchOutput",
     "check": "tsc -p tsconfig.json --noEmit",
-    "postinstall": "node scripts/postinstall.cjs",
+    "postinstall": "node dist/postinstall.js",
     "prepack": "pnpm run build"
   },
   "keywords": [

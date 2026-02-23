@@ -1,8 +1,6 @@
-#!/usr/bin/env node
-
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 const PREFIX = '[symlx]';
 const START = '# >>> symlx path >>>';
@@ -10,23 +8,23 @@ const END = '# <<< symlx path <<<';
 const BIN_PATH = '$HOME/.symlx/bin';
 const PROFILE_BASENAMES = ['.zprofile', '.zshrc', '.bashrc'];
 
-function info(message) {
+function info(message: string): void {
   process.stdout.write(`${PREFIX} ${message}\n`);
 }
 
-function warn(message) {
+function warn(message: string): void {
   process.stderr.write(`${PREFIX} ${message}\n`);
 }
 
-function resolveProfilePaths(homeDir) {
+function resolveProfilePaths(homeDir: string): string[] {
   return PROFILE_BASENAMES.map((basename) => path.join(homeDir, basename));
 }
 
-function escapeRegExp(value) {
+function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function buildPathBlock() {
+function buildPathBlock(): string {
   return [
     START,
     `if [[ ":$PATH:" != *":${BIN_PATH}:"* ]]; then`,
@@ -36,11 +34,11 @@ function buildPathBlock() {
   ].join('\n');
 }
 
-function ensureTrailingNewline(value) {
+function ensureTrailingNewline(value: string): string {
   return value.endsWith('\n') ? value : `${value}\n`;
 }
 
-function upsertProfileBlock(filePath, block) {
+function upsertProfileBlock(filePath: string, block: string): boolean {
   const exists = fs.existsSync(filePath);
   const current = exists ? fs.readFileSync(filePath, 'utf8') : '';
   const normalizedCurrent = current.replace(/\r\n/g, '\n');
@@ -50,7 +48,7 @@ function upsertProfileBlock(filePath, block) {
     'm',
   );
 
-  let next;
+  let next: string;
   if (markerPattern.test(normalizedCurrent)) {
     next = normalizedCurrent.replace(markerPattern, `${block}\n`);
   } else if (normalizedCurrent.trim().length === 0) {
@@ -67,7 +65,7 @@ function upsertProfileBlock(filePath, block) {
   return true;
 }
 
-function run() {
+function run(): void {
   if (process.env.SYMLX_SKIP_PATH_SETUP === '1') {
     info('skipping PATH setup because SYMLX_SKIP_PATH_SETUP=1');
     return;
@@ -89,7 +87,7 @@ function run() {
   const existingPaths = profilePaths.filter((filePath) => fs.existsSync(filePath));
   const targets = existingPaths.length > 0 ? existingPaths : [profilePaths[0]];
 
-  const updated = [];
+  const updated: string[] = [];
   for (const target of targets) {
     try {
       const changed = upsertProfileBlock(target, block);

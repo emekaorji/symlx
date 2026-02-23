@@ -66,12 +66,18 @@ const configFileOptionsSchema = z.object({
       return undefined;
     }),
   bin: binRecordSchema.optional(),
+  binResolutionStrategy: z.enum(['replace', 'merge']).optional(),
 });
 
 // -------------------------------------------
 
 const serveInlineOptionsSchema = configFileOptionsSchema
-  .pick({ binDir: true, collision: true, nonInteractive: true })
+  .pick({
+    binDir: true,
+    collision: true,
+    nonInteractive: true,
+    binResolutionStrategy: true,
+  })
   .extend({
     bin: binEntriesToRecordSchema,
   });

@@ -16,6 +16,7 @@ const defaultOptions: Options = {
   nonInteractive: false,
   binDir: path.join(os.homedir(), '.symlx', 'bin'),
   bin: {},
+  binResolutionStrategy: 'replace',
 };
 
 function hasBinEntries(
@@ -30,6 +31,8 @@ function computeResolvedBin(
   packageJSONBin: Record<string, string> | undefined,
   binResolutionStrategy?: 'replace' | 'merge',
 ) {
+  // Aggregates bin from all sources:
+  // inline + config + package.json + default
   if (binResolutionStrategy === 'merge') {
     return {
       ...(packageJSONBin ?? {}),
@@ -38,6 +41,8 @@ function computeResolvedBin(
     };
   }
 
+  // Bin source precedence is value-aware:
+  // inline (if non-empty) -> config (if non-empty) -> package.json (if non-empty) -> default.
   return hasBinEntries(inlineBin)
     ? inlineBin
     : hasBinEntries(configFileBin)
@@ -72,14 +77,6 @@ export function resolveOptions<TSchema extends z.ZodTypeAny>(
   const inlineBin = (validatedInlineOptions as { bin?: Record<string, string> })
     .bin;
 
-  // Bin source precedence is value-aware:
-  // inline (if non-empty) -> config (if non-empty) -> package.json (if non-empty) -> default.
-  const resolvedBin = computeResolvedBin(
-    inlineBin,
-    validatedConfigFileOptions.bin,
-    validatedPackageJSONOptions.bin,
-  );
-
   // Default options first
   // -> package.json options override defaults
   // -> config file options override package.json
@@ -89,10 +86,21 @@ export function resolveOptions<TSchema extends z.ZodTypeAny>(
     ...(validatedPackageJSONOptions ?? {}),
     ...(validatedConfigFileOptions ?? {}),
     ...(validatedInlineOptions ?? {}),
+  };
+
+  const resolvedBin = computeResolvedBin(
+    inlineBin,
+    validatedConfigFileOptions.bin,
+    validatedPackageJSONOptions.bin,
+    finalOptions.binResolutionStrategy,
+  );
+
+  const finalfinalOptionsIPromise = {
+    ...finalOptions,
     bin: resolvedBin,
   };
 
-  if (!Object.entries(finalOptions.bin).length) {
+  if (!Object.entries(finalfinalOptionsIPromise.bin).length) {
     throw new Error(
       [
         'no bin entries found. add at least one bin in any of these places:',
@@ -104,5 +112,5 @@ export function resolveOptions<TSchema extends z.ZodTypeAny>(
     );
   }
 
-  return finalOptions;
+  return finalfinalOptionsIPromise;
 }

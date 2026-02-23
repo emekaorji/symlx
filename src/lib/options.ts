@@ -121,10 +121,9 @@ export function resolveOptions<TSchema extends z.ZodTypeAny>(
     throw new Error(
       [
         'no bin entries found. add at least one bin in any of these places:',
-        '1) package.json -> "bin": { "my-cli": "./cli.js" }',
-        '2) symlx.config.json -> "bin": { "my-cli": "./cli.js" }',
-        '3) inline CLI -> symlx serve --bin my-cli=./cli.js',
-        '4) if package.json "bin" is a string, set a valid package.json "name" (used to infer the bin name).',
+        '-> package.json -> "bin": { "my-cli": "./cli.js" }',
+        '-> symlx.config.json -> "bin": { "my-cli": "./cli.js" }',
+        '-> inline CLI -> symlx serve --bin my-cli=./cli.js',
       ].join('\n'),
     );
   }

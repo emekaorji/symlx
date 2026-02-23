@@ -3,13 +3,12 @@ import path from 'path';
 import os from 'node:os';
 
 import type { Options } from './schema';
-import { loadConfigFileOptions } from './utils';
+import { loadConfigFileOptions, loadPackageJSONOptions } from './utils';
 import {
   validateConfigFileOptions,
   validateInlineOptions,
   validatePackageJSONOptions,
-} from './validate';
-import { loadPackageJSONOptions } from './package-bins';
+} from './validator';
 
 const DEFAULT_OPTIONS: Options = {
   collision: 'prompt',

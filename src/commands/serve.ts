@@ -1,8 +1,9 @@
 import path from 'path';
 import os from 'node:os';
 
-import type { SessionRecord } from '../lib/types';
-import { pathContainsDir } from '../lib/paths';
+import * as log from '../ui/logger';
+
+import { pathContainsDir } from '../lib/utils';
 import { createLinks } from '../lib/link-manager';
 import { registerLifecycleCleanup } from '../lib/lifecycle';
 import {
@@ -13,9 +14,11 @@ import {
   persistSession,
 } from '../lib/session-store';
 import { promptCollisionDecision } from '../ui/collision-prompt';
-import * as log from '../ui/logger';
 import { resolveOptions } from '../lib/options';
-import { serveInlineOptionsSchema, type Options } from '../lib/schema';
+import { serveInlineOptionsSchema } from '../lib/schema';
+
+import type { Options } from '../lib/schema';
+import type { SessionRecord } from '../lib/types';
 
 // Prompts require an interactive terminal; scripts/CI should avoid prompt mode.
 function isInteractiveSession(): boolean {

@@ -5,7 +5,6 @@ import {
   PackageJSONOptions,
   packageJSONOptionsSchema,
   type ConfigFileOptions,
-  type Options,
 } from './schema';
 
 function formatIssues(error: z.ZodError): string {
@@ -19,7 +18,7 @@ function formatIssues(error: z.ZodError): string {
 }
 
 export function validatePackageJSONOptions(
-  input: { bin: Record<string, string> } | undefined,
+  input: unknown,
 ): PackageJSONOptions & { issues: string[] } {
   const result = packageJSONOptionsSchema.safeParse(input || {});
   if (!result.success) {
@@ -29,7 +28,7 @@ export function validatePackageJSONOptions(
 }
 
 export function validateConfigFileOptions(
-  input: Options | undefined,
+  input: unknown,
   label = 'input',
 ): ConfigFileOptions {
   const result = configFileOptionsSchema.safeParse(input || {});

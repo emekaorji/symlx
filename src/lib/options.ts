@@ -69,22 +69,30 @@ export function resolveOptions<TSchema extends z.ZodTypeAny>(
   inlineOptionsSchema: TSchema,
   inlineOptions?: unknown,
 ): Options {
-  // Load the bin from package.json
-  const packageJSONOptions = loadPackageJSONOptions(cwd);
+  const packageJSONLoadResult = loadPackageJSONOptions(cwd);
   const validatedPackageJSONOptions =
-    validatePackageJSONOptions(packageJSONOptions);
-  const issues = [
-    ...packageJSONOptions.issues,
+    validatePackageJSONOptions(packageJSONLoadResult);
+  const packageJSONIssues = [
+    ...packageJSONLoadResult.issues,
     ...validatedPackageJSONOptions.issues,
   ];
 
-  // Load and validate the options from the config file,
-  // silently overriding invalid non-critical values with defaults or inline based on order of priority
-  const configFileOptions = loadConfigFileOptions();
-  const validatedConfigFileOptions =
-    validateConfigFileOptions(configFileOptions);
+  const fatalPackageIssue = packageJSONIssues.find((issue) =>
+    issue.startsWith('invalid package.json'),
+  );
+  if (fatalPackageIssue) {
+    throw new Error(fatalPackageIssue);
+  }
 
-  // Validate the CLI inline options if available
+  const configFileLoadResult = loadConfigFileOptions(cwd);
+  if (configFileLoadResult.issue) {
+    throw new Error(configFileLoadResult.issue);
+  }
+
+  const validatedConfigFileOptions = validateConfigFileOptions(
+    configFileLoadResult.options,
+  );
+
   const validatedInlineOptions = validateInlineOptions(
     inlineOptionsSchema,
     inlineOptions,
@@ -92,11 +100,7 @@ export function resolveOptions<TSchema extends z.ZodTypeAny>(
   const inlineBin = (validatedInlineOptions as { bin?: Record<string, string> })
     .bin;
 
-  // Default options first
-  // -> package.json options override defaults
-  // -> config file options override package.json
-  // -> CLI inline options overrides config file options
-  const finalOptions = {
+  const mergedOptions = {
     ...DEFAULT_OPTIONS,
     ...(validatedPackageJSONOptions ?? {}),
     ...(validatedConfigFileOptions ?? {}),
@@ -107,26 +111,30 @@ export function resolveOptions<TSchema extends z.ZodTypeAny>(
     inlineBin,
     validatedConfigFileOptions.bin,
     validatedPackageJSONOptions.bin,
-    finalOptions.binResolutionStrategy,
+    mergedOptions.binResolutionStrategy,
   );
 
-  const finalfinalOptionsIPromise = {
-    ...finalOptions,
+  const finalOptions = {
+    ...mergedOptions,
     bin: withCwdPrefixedBin(cwd, resolvedBin),
   };
 
-  if (!Object.entries(finalfinalOptionsIPromise.bin).length) {
-    if (issues.length) throw new Error(issues[0]);
-
-    throw new Error(
-      [
-        'no bin entries found. add at least one bin in any of these places:',
-        '-> package.json -> "bin": { "my-cli": "./cli.js" }',
-        '-> symlx.config.json -> "bin": { "my-cli": "./cli.js" }',
-        '-> inline CLI -> symlx serve --bin my-cli=./cli.js',
-      ].join('\n'),
-    );
+  if (Object.keys(finalOptions.bin).length > 0) {
+    return finalOptions;
   }
 
-  return finalfinalOptionsIPromise;
+  const primaryIssue = packageJSONIssues[0];
+  if (primaryIssue) {
+    throw new Error(primaryIssue);
+  }
+
+  throw new Error(
+    [
+      'no bin entries found.',
+      'add at least one command in one of these places:',
+      '1) package.json -> "bin": { "my-cli": "./cli.js" }',
+      '2) symlx.config.json -> "bin": { "my-cli": "./cli.js" }',
+      '3) inline CLI -> symlx serve --bin my-cli=./cli.js',
+    ].join('\n'),
+  );
 }

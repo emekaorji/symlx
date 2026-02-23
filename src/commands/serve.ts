@@ -5,6 +5,7 @@ import * as log from '../ui/logger';
 
 import { pathContainsDir } from '../lib/utils';
 import { createLinks } from '../lib/link-manager';
+import { assertValidBinTargets } from '../lib/bin-targets';
 import { registerLifecycleCleanup } from '../lib/lifecycle';
 import {
   cleanupSession,
@@ -45,7 +46,7 @@ function resolveCollisionHandling(options: Options): CollisionHandling {
   const canPrompt = !options.nonInteractive && isInteractiveSession();
   if (!canPrompt) {
     log.warn(
-      'prompt collision mode requested but session is non-interactive; falling back to skip',
+      'prompt collision mode requested but session is non-interactive; falling back to skip (use --collision overwrite|fail to avoid skips)',
     );
     return { policy: 'skip' };
   }
@@ -70,7 +71,24 @@ async function linkCommands(
 
 function ensureLinksWereCreated(linkResult: LinkCreationResult): void {
   if (linkResult.created.length === 0) {
-    throw new Error('no links were created');
+    if (linkResult.skipped.length === 0) {
+      throw new Error('no links were created');
+    }
+
+    const details = linkResult.skipped
+      .slice(0, 5)
+      .map((skip) => `- ${skip.name}: ${skip.reason}`)
+      .join('\n');
+    const remainingCount = linkResult.skipped.length - 5;
+    const remaining = remainingCount > 0 ? `\n- ...and ${remainingCount} more` : '';
+
+    throw new Error(
+      [
+        'no links were created because all candidate commands were skipped.',
+        details,
+        `${remaining}\nuse --collision overwrite or --collision fail for stricter behavior.`,
+      ].join('\n'),
+    );
   }
 }
 
@@ -139,6 +157,7 @@ async function run(options: Options): Promise<void> {
   const sessionDir = path.join(os.homedir(), '.symlx', 'sessions');
 
   prepareRuntimeDirectories(options.binDir, sessionDir);
+  assertValidBinTargets(options.bin);
 
   const collisionHandling = resolveCollisionHandling(options);
   const linkResult = await linkCommands(options, collisionHandling);

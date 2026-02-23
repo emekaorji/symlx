@@ -21,17 +21,22 @@ async function main(): Promise<void> {
 
   program
     .command('serve')
-    .description("Link this project's package.json bins until symlx exits")
+    .description("Link this project's bin commands until symlx exits")
     .option('--bin-dir <dir>', 'target bin directory (default: ~/.symlx/bin)')
     .option(
       '--collision <policy>',
       'collision mode: prompt|skip|fail|overwrite',
       'prompt',
     )
+    .option(
+      '--bin-resolution-strategy <strategy>',
+      'bin precedence strategy: replace|merge',
+      'replace',
+    )
     .option('--non-interactive', 'disable interactive prompts', false)
     .option(
       '--bin <name=path>',
-      'custom bin mapping (repeatable), e.g. --bin my-cli=./cli.js',
+      'custom bin mapping (repeatable), e.g. --bin my-cli=dist/cli.js',
       collectBinEntry,
       [],
     )

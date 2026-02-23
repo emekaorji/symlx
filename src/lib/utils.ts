@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { Options } from './schema';
+import type { ConfigFileOptions } from './schema';
 
 import type { PackageJson } from './types';
 
@@ -15,11 +15,48 @@ export function loadJSONFile<T>(filePath: string): T | undefined {
   }
 }
 
-export function loadConfigFileOptions() {
-  const cwd = process.cwd();
+function formatReadError(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return String(error);
+}
+
+function readJSONFileWithIssue<T>(
+  filePath: string,
+  label: string,
+): {
+  data?: T;
+  issue?: string;
+} {
+  try {
+    const raw = fs.readFileSync(filePath, 'utf8');
+    return { data: JSON.parse(raw) as T };
+  } catch (error) {
+    return {
+      issue: `invalid ${label} at ${filePath}: ${formatReadError(error)}`,
+    };
+  }
+}
+
+export function loadConfigFileOptions(cwd: string): {
+  options?: ConfigFileOptions;
+  issue?: string;
+} {
   const configPath = path.join(cwd, 'symlx.config.json');
-  const configFileOptions = loadJSONFile<Options>(configPath);
-  return configFileOptions;
+  if (!fs.existsSync(configPath)) {
+    return {};
+  }
+
+  const result = readJSONFileWithIssue<ConfigFileOptions>(
+    configPath,
+    'symlx.config.json',
+  );
+  if (result.issue) {
+    return { issue: result.issue };
+  }
+
+  return { options: result.data };
 }
 
 // npm allows `bin` as a string; in that form the command name defaults to package name
@@ -50,11 +87,22 @@ export function loadPackageJSONOptions(cwd: string): {
   if (!fs.existsSync(packageJsonPath)) {
     return {
       bin: {},
-      issues: [],
+      issues: [`package.json not found at ${packageJsonPath}`],
     };
   }
 
-  const packageJson = loadJSONFile<PackageJson>(packageJsonPath);
+  const parsedPackageJSON = readJSONFileWithIssue<PackageJson>(
+    packageJsonPath,
+    'package.json',
+  );
+  if (parsedPackageJSON.issue) {
+    return {
+      bin: {},
+      issues: [parsedPackageJSON.issue],
+    };
+  }
+
+  const packageJson = parsedPackageJSON.data;
   if (!packageJson || !packageJson.bin) {
     return {
       bin: {},

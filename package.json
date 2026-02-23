@@ -4,8 +4,7 @@
   "description": "Temporary local CLI bin linker",
   "license": "MIT",
   "bin": {
-    "symlx": "dist/cli.js",
-    "cx": "dist/cli.js"
+    "symlx": "dist/cli.js"
   },
   "files": [
     "dist",
@@ -15,9 +14,10 @@
     "build": "tsc -p tsconfig.json && chmod +x dist/cli.js",
     "watch": "tsc -p tsconfig.json --watch --preserveWatchOutput",
     "check": "tsc -p tsconfig.json --noEmit",
+    "test": "pnpm run build && tsc -p tsconfig.test.json && node --test .tmp-tests/test/**/*.test.js",
     "preinstall": "node dist/preinstall.js",
     "postinstall": "node dist/postinstall.js",
-    "prepack": "pnpm run build"
+    "prepack": "pnpm run build && pnpm run test"
   },
   "keywords": [
     "cli",

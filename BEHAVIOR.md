@@ -2,7 +2,8 @@
 
 ## Verdict
 
-`symlx` is usable today, but it does **not** yet represent "world-best DX."
+`symlx` is now in a strong usable state with a much tighter DX baseline.
+It is substantially improved versus the initial 0.1.x baseline, with remaining gaps mostly around command breadth and advanced automation.
 
 The core mechanics are solid:
 
@@ -11,13 +12,13 @@ The core mechanics are solid:
 - option source resolution works
 - install-time PATH setup is automated and idempotent
 
-The biggest DX gaps are still material:
+Most impactful DX gaps from the initial audit were addressed:
 
-- discoverability gaps (`README.md` is placeholder)
-- one hidden capability (`binResolutionStrategy`) is implemented but not exposed as CLI flag
-- some failure modes are opaque (invalid/malformed `package.json` behaves like "no bins found")
-- missing bin target files are not validated before linking, so users get a broken command later
-- naming surface is inconsistent (`symlx` package still exposes both `symlx` and `cx` binaries)
+- README is now a full usage guide
+- `--bin-resolution-strategy` is available on CLI
+- malformed `package.json` gets targeted errors
+- bin targets are validated before linking
+- package binary surface is now canonicalized to `symlx`
 
 ## Assessment Method
 
@@ -44,8 +45,8 @@ Validated environment:
 | 05  | Postinstall success                      | `npm i symlx`                                       | Adds marker block to profile; prints `source ...` command      | Very good  | Keep                                                   |
 | 06  | Postinstall opt-out                      | `SYMLX_SKIP_PATH_SETUP=1 npm i symlx`               | Skips mutation and prints manual setup                         | Good       | Keep                                                   |
 | 07  | Postinstall early-return guidance        | write/permission/home/platform early return         | Prints manual setup block                                      | Good       | Keep                                                   |
-| 08  | No `package.json`                        | `symlx serve` in empty folder                       | Fails with "no bin entries found..." message                   | Fair       | Include explicit "package.json not found" branch       |
-| 09  | Invalid `package.json` JSON              | malformed `package.json`                            | Same output as missing bins                                    | Weak       | Explicit parse error with file path and line context   |
+| 08  | No `package.json`                        | `symlx serve` in empty folder                       | Fails with explicit `package.json not found ...` guidance      | Good       | Keep                                                   |
+| 09  | Invalid `package.json` JSON              | malformed `package.json`                            | Fails with explicit parse error and file path                  | Good       | Keep                                                   |
 | 10  | `package.json` bin object                | `"bin": {"tool":"./dist/cli.js"}`                   | Resolves and links command                                     | Good       | Keep                                                   |
 | 11  | `package.json` bin string + valid name   | `"name":"pkg","bin":"./dist/cli.js"`                | Infers bin name from package name                              | Good       | Keep                                                   |
 | 12  | `package.json` bin string + missing name | `"bin":"./dist/cli.js"`                             | Fails with concise package-name guidance                       | Good       | Keep                                                   |
@@ -56,7 +57,7 @@ Validated environment:
 | 17  | Inline `--bin` invalid absolute path     | `--bin xin=/tmp/cli.js`                             | Schema error                                                   | Good       | Keep                                                   |
 | 18  | Default bin precedence (`replace`)       | package + config bins                               | Config wins when non-empty                                     | Good       | Document as default prominently                        |
 | 19  | Merge strategy via config                | `binResolutionStrategy: "merge"`                    | Package + config + inline are merged                           | Good       | Expose this in CLI help                                |
-| 20  | Merge strategy via CLI flag              | `--bin-resolution-strategy merge`                   | Unknown option error                                           | Weak       | Add actual flag to `cli.ts`                            |
+| 20  | Merge strategy via CLI flag              | `--bin-resolution-strategy merge`                   | Works and is validated through schema                          | Good       | Keep                                                   |
 | 21  | Collision `fail`                         | conflicting target path + `--collision fail`        | Immediate clear error; no mutation                             | Good       | Keep                                                   |
 | 22  | Collision `overwrite`                    | conflicting target path + overwrite                 | Replaces and links                                             | Good       | Keep                                                   |
 | 23  | Collision `skip` all-collide             | only conflicts + skip                               | Ends with `no links were created`                              | Fair       | Include skipped count/reasons in terminal error        |
@@ -66,22 +67,20 @@ Validated environment:
 | 27  | Stale session cleanup                    | dead pid in session file                            | stale links/session reaped on next run                         | Good       | Keep                                                   |
 | 28  | PATH hint during serve                   | binDir not in PATH                                  | prints `export PATH=...` guidance                              | Good       | Keep                                                   |
 | 29  | PATH hint suppressed                     | binDir already in PATH                              | no redundant hint                                              | Good       | Keep                                                   |
-| 30  | Missing target file in bin map           | link points to non-existent file                    | link still created; command later fails at invocation          | Weak       | Validate target existence/executability before linking |
+| 30  | Missing target file in bin map           | link points to non-existent file                    | Fails early with actionable validation message                 | Good       | Keep                                                   |
 | 31  | Readability of fatal errors              | thrown errors via top-level catch                   | prefixed error output                                          | Good       | Add error codes for scripting                          |
 | 32  | Logs for created links                   | successful link run                                 | prints each `name -> target`                                   | Good       | Keep                                                   |
-| 33  | Docs for runtime flow                    | current README placeholder                          | discoverability is poor                                        | Weak       | Replace README with production docs now                |
-| 34  | Naming clarity                           | package/bin currently include both `symlx` and `cx` | command identity ambiguous                                     | Weak       | Use one canonical command                              |
+| 33  | Docs for runtime flow                    | current README                                      | detailed install/usage/config/troubleshooting guide            | Good       | Keep                                                   |
+| 34  | Naming clarity                           | package/bin                                          | canonical command name is `symlx`                             | Good       | Keep                                                   |
 | 35  | Test confidence                          | no automated tests yet                              | runtime quality depends on manual checks                       | Weak       | Add unit+integration+E2E test baseline                 |
 
 
 ## Friction Points That Block "Best DX"
 
-1. No authoritative docs for first-time users.
-2. One internal capability (`binResolutionStrategy`) is not reachable from CLI.
-3. Broken-target links are possible because symlink creation happens before target validation.
-4. Error messaging conflates missing bins vs malformed input in key cases.
-5. Command identity is split (`symlx` and `cx`), which dilutes discoverability.
-6. No test suite guarantees behavior stability.
+1. No JSON/machine-readable output mode yet for scripted CI usage.
+2. Only `serve` exists today; status/doctor/cleanup commands are still pending.
+3. Cross-platform Windows command-link behavior is not implemented yet.
+4. Test surface is now present but still not full end-to-end matrix coverage.
 
 ## What "Best DX" Would Look Like in This Exact Tool
 
@@ -104,14 +103,13 @@ Validated environment:
 
 ## Immediate Upgrades (High Impact, Low Risk)
 
-1. Replace `README.md` with real install/serve/config/collision/preinstall-postinstall docs.
-2. Add `--bin-resolution-strategy <replace|merge>` to `src/cli.ts`.
-3. Add pre-link target checks in `src/commands/serve.ts` and fail with precise path errors.
-4. Differentiate parse failures from missing bins in `src/lib/utils.ts` + `src/lib/options.ts`.
-5. Remove binary alias ambiguity by picking one canonical bin in `package.json`.
+1. Add machine-readable output mode (`--json`) for serve and future commands.
+2. Add `status`, `cleanup`, and `doctor` command set.
+3. Expand test suite with full collision matrix and stale-session regression tests.
+4. Add Windows support strategy and test coverage.
+5. Add CI workflow running `check + build + test + pack smoke`.
 
 ## Notes
 
 - This file evaluates **developer experience behavior**, not only implementation internals.
 - Rows marked weak/fair are the highest-leverage fixes to move `symlx` from usable to excellent.
-

@@ -9,8 +9,9 @@ These details may change as the product evolves.
   - options include:
     - `--bin-dir`
     - `--collision`
+    - `--bin-resolution-strategy`
     - `--non-interactive`
-    - repeatable `--bin name=./path`
+    - repeatable `--bin name=relative/path`
 
 ## Runtime flow (`serve`)
 
@@ -18,10 +19,11 @@ These details may change as the product evolves.
 2. Cleanup stale sessions.
 3. Ensure runtime directories exist.
 4. Resolve final bin map.
-5. Create command links with collision handling.
-6. Persist session file.
-7. Register lifecycle cleanup handlers.
-8. Keep process alive until interrupted.
+5. Validate bin targets (exists, non-directory, executable on unix-like systems).
+6. Create command links with collision handling.
+7. Persist session file.
+8. Register lifecycle cleanup handlers.
+9. Keep process alive until interrupted.
 
 ## Option source resolution (current)
 
@@ -41,6 +43,7 @@ Implemented in `resolveOptions()`:
 
 - Schemas are defined in `src/lib/schema.ts`.
 - Validation wrappers are in `src/lib/validator.ts`.
+- Malformed `package.json` now fails early with an explicit file/path parse error.
 - Config has mixed strict/fallback behavior:
   - some fields fail on invalid values
   - some fields fallback with warnings
@@ -64,4 +67,15 @@ Inline `--bin` is transformed into `Record<string, string>` before option resolu
 ## Interactive behavior (current)
 
 - Collision prompt is used when collision policy is `prompt` and TTY is interactive.
-- Non-interactive contexts use fallback behavior.
+- Non-interactive contexts fallback to `skip` with a warning.
+
+## Packaging/runtime behavior (current)
+
+- Package command name is canonicalized to `symlx`.
+- `preinstall` prints PATH setup notice.
+- `postinstall` applies idempotent shell profile PATH block updates (unless skipped via `SYMLX_SKIP_PATH_SETUP=1`).
+
+## Test baseline (current)
+
+- TypeScript unit tests live in `test/*.test.ts`.
+- Test command compiles source+tests and runs via Node test runner.

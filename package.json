@@ -4,7 +4,8 @@
   "description": "Temporary local CLI bin linker",
   "license": "MIT",
   "bin": {
-    "symlx": "dist/cli.js"
+    "symlx": "dist/cli.js",
+    "cx": "dist/cli.js"
   },
   "files": [
     "dist",

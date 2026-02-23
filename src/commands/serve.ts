@@ -13,7 +13,7 @@ import {
   ensureSymlxDirectories,
   persistSession,
 } from '../lib/session-store';
-import { promptCollisionDecision } from '../ui/collision-prompt';
+import { promptCollisionDecision } from '../ui/prompts';
 import { resolveOptions } from '../lib/options';
 import { serveInlineOptionsSchema } from '../lib/schema';
 

@@ -9,9 +9,9 @@ import {
   validateInlineOptions,
   validatePackageJSONOptions,
 } from './validate';
-import { loadPackageJSONOptions } from '../services/package-bins';
+import { loadPackageJSONOptions } from './package-bins';
 
-const defaultOptions: Options = {
+const DEFAULT_OPTIONS: Options = {
   collision: 'prompt',
   nonInteractive: false,
   binDir: path.join(os.homedir(), '.symlx', 'bin'),
@@ -49,7 +49,7 @@ function computeResolvedBin(
       ? configFileBin
       : hasBinEntries(packageJSONBin)
         ? packageJSONBin
-        : defaultOptions.bin;
+        : DEFAULT_OPTIONS.bin;
 }
 
 // Function to aggregate all options from different sources in order or priority
@@ -82,7 +82,7 @@ export function resolveOptions<TSchema extends z.ZodTypeAny>(
   // -> config file options override package.json
   // -> CLI inline options overrides config file options
   const finalOptions = {
-    ...defaultOptions,
+    ...DEFAULT_OPTIONS,
     ...(validatedPackageJSONOptions ?? {}),
     ...(validatedConfigFileOptions ?? {}),
     ...(validatedInlineOptions ?? {}),

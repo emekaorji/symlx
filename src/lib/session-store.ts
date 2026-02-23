@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import type { LinkRecord, SessionRecord } from '../lib/types';
+import type { LinkRecord, SessionRecord } from './types';
 import * as log from '../ui/logger';
-import { loadJSONFile } from '../lib/utils';
+import { deleteFile, loadJSONFile } from './utils';
 
 // Checks whether a PID from a previous session is still alive.
 function isProcessAlive(pid: number): boolean {
@@ -21,15 +21,6 @@ function isProcessAlive(pid: number): boolean {
     // If the error code is not ESRCH, then it means the process does not exist
     // If it's EPERM, then it's running, you simply don't have permission to signal it (fair enough)
     return code !== 'ESRCH';
-  }
-}
-
-// Session files are best-effort state; deletion failure should not fail the command.
-function deleteFile(filePath: string): void {
-  try {
-    fs.unlinkSync(filePath);
-  } catch {
-    // Best-effort cleanup.
   }
 }
 
@@ -56,8 +47,6 @@ function cleanupLinks(links: LinkRecord[]): void {
     }
   }
 }
-
-// -----------------------------------------------------------
 
 // Ensures runtime directories exist before linking/saving sessions.
 export function ensureSymlxDirectories(

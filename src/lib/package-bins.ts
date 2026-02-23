@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import type { PackageJson } from '../lib/types';
-import { loadJSONFile } from '../lib/utils';
+import type { PackageJson } from './types';
+import { loadJSONFile } from './utils';
 
 // npm allows `bin` as a string; in that form the command name defaults to package name
 // (without scope for scoped packages).

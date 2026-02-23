@@ -18,3 +18,12 @@ export function loadConfigFileOptions() {
   const configFileOptions = loadJSONFile<Options>(configPath);
   return configFileOptions;
 }
+
+// Session files are best-effort state; deletion failure should not fail the command.
+export function deleteFile(filePath: string): void {
+  try {
+    fs.unlinkSync(filePath);
+  } catch {
+    // Best-effort cleanup.
+  }
+}

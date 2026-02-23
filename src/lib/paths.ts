@@ -1,4 +1,3 @@
-import os from 'node:os';
 import path from 'node:path';
 
 // Checks if PATH already contains a directory so we can avoid noisy setup hints.

@@ -6,7 +6,7 @@ import type {
   CollisionPolicy,
   LinkConflict,
   LinkCreationResult,
-} from '../lib/types';
+} from './types';
 
 // Injected prompt/decision hook used only when collision policy is interactive.
 export type CollisionResolver = (

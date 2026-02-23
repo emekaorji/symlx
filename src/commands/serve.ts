@@ -3,15 +3,15 @@ import os from 'node:os';
 
 import type { SessionRecord } from '../lib/types';
 import { pathContainsDir } from '../lib/paths';
-import { createLinks } from '../services/link-manager';
-import { registerLifecycleCleanup } from '../services/lifecycle';
+import { createLinks } from '../lib/link-manager';
+import { registerLifecycleCleanup } from '../lib/lifecycle';
 import {
   cleanupSession,
   cleanupStaleSessions,
   createSessionFilePath,
   ensureSymlxDirectories,
   persistSession,
-} from '../services/session-store';
+} from '../lib/session-store';
 import { promptCollisionDecision } from '../ui/collision-prompt';
 import * as log from '../ui/logger';
 import { resolveOptions } from '../lib/options';

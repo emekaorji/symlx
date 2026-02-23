@@ -70,9 +70,11 @@ const configFileOptionsSchema = z.object({
 
 // -------------------------------------------
 
-const serveInlineOptionsSchema = configFileOptionsSchema.extend({
-  bin: binEntriesToRecordSchema,
-});
+const serveInlineOptionsSchema = configFileOptionsSchema
+  .pick({ binDir: true, collision: true, nonInteractive: true })
+  .extend({
+    bin: binEntriesToRecordSchema,
+  });
 
 // TODO: Remove types from here later
 export type PackageJSONOptions = z.infer<typeof packageJSONOptionsSchema>;

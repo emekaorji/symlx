@@ -24,6 +24,29 @@ function hasBinEntries(
   return Boolean(bin && Object.keys(bin).length > 0);
 }
 
+function computeResolvedBin(
+  inlineBin: Record<string, string> | undefined,
+  configFileBin: Record<string, string> | undefined,
+  packageJSONBin: Record<string, string> | undefined,
+  binResolutionStrategy?: 'replace' | 'merge',
+) {
+  if (binResolutionStrategy === 'merge') {
+    return {
+      ...(packageJSONBin ?? {}),
+      ...(configFileBin ?? {}),
+      ...(inlineBin ?? {}),
+    };
+  }
+
+  return hasBinEntries(inlineBin)
+    ? inlineBin
+    : hasBinEntries(configFileBin)
+      ? configFileBin
+      : hasBinEntries(packageJSONBin)
+        ? packageJSONBin
+        : defaultOptions.bin;
+}
+
 // Function to aggregate all options from different sources in order or priority
 export function resolveOptions<TSchema extends z.ZodTypeAny>(
   cwd: string,
@@ -51,13 +74,11 @@ export function resolveOptions<TSchema extends z.ZodTypeAny>(
 
   // Bin source precedence is value-aware:
   // inline (if non-empty) -> config (if non-empty) -> package.json (if non-empty) -> default.
-  const resolvedBin = hasBinEntries(inlineBin)
-    ? inlineBin
-    : hasBinEntries(validatedConfigFileOptions.bin)
-      ? validatedConfigFileOptions.bin
-      : hasBinEntries(validatedPackageJSONOptions.bin)
-        ? validatedPackageJSONOptions.bin
-        : defaultOptions.bin;
+  const resolvedBin = computeResolvedBin(
+    inlineBin,
+    validatedConfigFileOptions.bin,
+    validatedPackageJSONOptions.bin,
+  );
 
   // Default options first
   // -> package.json options override defaults

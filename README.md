@@ -61,15 +61,13 @@ Links commands from resolved bin mappings and keeps the process alive until inte
 
 ### Options
 
-
-| Option                                 | Type                               | Default        | Description                                                           |
-| -------------------------------------- | ---------------------------------- | -------------- | --------------------------------------------------------------------- |
-| `--bin-dir <dir>`                      | string                             | `~/.symlx/bin` | Target directory where command links are created.                     |
-| `--collision <policy>`                 | `prompt | skip | fail | overwrite` | `prompt`       | What to do when a command name already exists in bin dir.             |
-| `--bin-resolution-strategy <strategy>` | `replace | merge`                  | `replace`      | How to resolve `bin` across `package.json`, config, and inline flags. |
-| `--non-interactive`                    | boolean                            | `false`        | Disable prompts and force non-interactive behavior.                   |
-| `--bin <name=path>` (repeatable)       | string[]                           | `[]`           | Inline bin mapping (for quick overrides/ad-hoc runs).                 |
-
+| Option                                 | Type                                  | Default        | Description                                                           |
+| -------------------------------------- | ------------------------------------- | -------------- | --------------------------------------------------------------------- |
+| `--bin-dir <dir>`                      | string                                | `~/.symlx/bin` | Target directory where command links are created.                     |
+| `--collision <policy>`                 | `prompt \| skip \| fail \| overwrite` | `prompt`       | What to do when a command name already exists in bin dir.             |
+| `--bin-resolution-strategy <strategy>` | `replace \| merge`                    | `replace`      | How to resolve `bin` across `package.json`, config, and inline flags. |
+| `--non-interactive`                    | boolean                               | `false`        | Disable prompts and force non-interactive behavior.                   |
+| `--bin <name=path>` (repeatable)       | string[]                              | `[]`           | Inline bin mapping (for quick overrides/ad-hoc runs).                 |
 
 Examples:
 
@@ -94,9 +92,9 @@ Scalar fields (`collision`, `binDir`, `nonInteractive`, `binResolutionStrategy`)
 `bin` uses strategy mode:
 
 - `replace` (default): first non-empty wins by priority  
-`inline > config > package.json > default`
+  `inline > config > package.json > default`
 - `merge`: combines all  
-`package.json + config + inline` (right-most source overrides key collisions)
+  `package.json + config + inline` (right-most source overrides key collisions)
 
 ## Supported Bin Sources
 
@@ -145,7 +143,11 @@ Notes:
 
 ```bash
 symlx serve --bin my-tool=dist/cli.js
-symlx serve --bin my-tool=dist/cli.js --bin my-admin=dist/admin.js
+
+# multiple inline bins
+symlx serve \
+  --bin xin-ping=./cli.js \
+  --bin admin=./scripts/admin.js
 ```
 
 `name` rules:

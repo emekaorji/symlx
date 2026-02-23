@@ -1,91 +1,64 @@
-# Symlx Conventions
+# Symlx Code Conventions
 
-This is the source-of-truth document for code conventions and architecture expectations in `symlx-cli`.
+This file defines stable coding paradigms and style rules.
+Runtime behavior and current feature semantics are documented in `IMPLEMENTATION.md`.
 
-## Document name
+## Scope rule
 
-Use `CONVENTIONS.md` for internal engineering rules.
-If this project becomes widely open-source, keep this file and also add a short `CONTRIBUTING.md` that links here.
-
-## Paradigm check (start vs now)
-
-| Area | Initial direction | Current implementation | Convention going forward |
-|---|---|---|---|
-| CLI orchestration | `commander` entrypoint with `serve` command | `commander` still used in `src/cli.ts` | Keep command definitions in `src/cli.ts`; keep command logic in `src/commands/*` |
-| Runtime lifecycle | long-running `serve` with cleanup on signals/exit | same behavior via `lib/lifecycle.ts` + `lib/session-store.ts` | Keep cleanup idempotent and best-effort |
-| Linking engine | dedicated link manager with collision policies | same behavior in `lib/link-manager.ts` | No destructive directory deletes; only unlink known files/symlinks |
-| Options/validation | inline parsing in command layer | centralized option resolution in `lib/options.ts` + zod schemas in `lib/schema.ts` | Keep all source merge and precedence in `lib/options.ts` |
-| Option sources | mostly package/bin driven | defaults + package.json + config + inline CLI | Preserve deterministic precedence and document it in code comments |
-| Bin source behavior | one source at a time | supports `replace` and `merge` strategy | Default remains `replace`; `merge` is opt-in |
-| Prompting | prompt when collision policy is `prompt` | same behavior through `ui/prompts.ts` | Never prompt in non-interactive sessions |
-| Module layout | `core/services/ui` split | refactored into `lib/`, `commands/`, `ui/` | Keep domain logic in `lib/`, command orchestration in `commands/` |
+- `CONVENTIONS.md`: how code should be written.
+- `IMPLEMENTATION.md`: what the code currently does.
 
 ## Architecture conventions
 
-1. `src/cli.ts` only defines command surface: flags, help text, and command handlers.
+1. `src/cli.ts` defines command surface only (flags, descriptions, handler wiring).
 2. `src/commands/*` orchestrates command flow and side effects.
-3. `src/lib/*` contains reusable domain logic (options, validation, linking, lifecycle, session handling, shared utilities).
-4. `src/ui/*` is only for terminal presentation (logs/prompts), not business rules.
+3. `src/lib/*` contains reusable domain logic and pure helpers.
+4. `src/ui/*` is presentation-only (logs/prompts), not business decision logic.
+5. Cross-layer imports should flow inward (`cli -> commands -> lib/ui`), never the reverse.
 
-## Option resolution conventions
+## Validation and schema conventions
 
-`resolveOptions()` in `src/lib/options.ts` is the only place that may combine options from multiple sources.
+1. Zod schemas live in `src/lib/schema.ts`.
+2. Validation wrappers live in `src/lib/validator.ts`.
+3. Commands should consume validated objects, not raw untyped option input.
+4. Keep validation and transformation close to schema definitions.
 
-Default source order is:
+## Option handling conventions
 
-1. hardcoded defaults
-2. `package.json`-derived options
-3. `symlx.config.json`
-4. inline CLI options
-
-Bin resolution rule:
-
-- `replace` mode: choose first non-empty bin map by precedence (`inline -> config -> package.json -> default`).
-- `merge` mode: overlay maps (`package.json -> config -> inline`).
-
-## Validation conventions
-
-1. Schemas live in `src/lib/schema.ts`.
-2. Parsing helpers live in `src/lib/validator.ts`.
-3. Critical config fields should fail parsing when invalid.
-4. Non-critical config fields may fallback to default and emit warning logs.
-5. Validation errors must include field path and readable cause.
-
-## Bin conventions
-
-1. Canonical runtime shape for bins is `Record<string, string>`.
-2. CLI repeatable `--bin` input is parsed into `Record<string, string>` before command execution.
-3. Bin names should follow lowercase kebab style.
-4. Bin targets should be explicit relative paths (for portability).
-
-## Error and logging conventions
-
-1. User-facing errors should be actionable and concise.
-2. Missing bin sources must list supported input locations (package.json, config, inline CLI).
-3. Warnings are for recoverable fallback behavior.
-4. Logs must use `ui/logger.ts` for consistent prefixing and formatting.
+1. Option source aggregation must happen in one place: `src/lib/options.ts`.
+2. Option resolution must be deterministic and documented where implemented.
+3. Command handlers should not duplicate merge logic.
 
 ## Safety conventions
 
-1. Never overwrite directories during link creation.
-2. Never delete links unless they still point to the known target from session metadata.
-3. Keep stale-session cleanup best-effort and non-fatal.
-4. Handle crash/kill scenarios via startup stale cleanup.
+1. Never delete directories as part of link conflict handling.
+2. Never delete files/symlinks that were not created/owned by this project.
+3. Destructive operations must be explicit, narrow, and auditable in code.
 
-## Style conventions
+## Logging and errors conventions
 
-1. TypeScript strict mode stays enabled.
-2. Use single quotes and semicolons consistently.
-3. Prefer named exports for reusable helpers.
-4. Keep comments short and intent-focused (why, not obvious what).
+1. Use `src/ui/logger.ts` for user-facing logs.
+2. Error messages must be actionable and concise.
+3. Warning messages should explain fallback behavior.
+4. Avoid hidden failures; either handle with explicit fallback or throw.
 
-## Contributor checklist
+## TypeScript and style conventions
 
-Before opening a change:
+1. Keep strict typing enabled.
+2. Prefer explicit domain types over `any`.
+3. Use single quotes and semicolons.
+4. Prefer small functions with single responsibility.
+5. Prefer named exports for reusable modules.
+6. Keep comments intent-focused ("why"), not narrating obvious syntax ("what").
 
-1. Update/add schema types for new options.
-2. Keep merge precedence logic only in `resolveOptions()`.
-3. Add/adjust command help text in `src/cli.ts`.
-4. Run `pnpm run check`.
-5. Run `pnpm run build`.
-6. Verify at least one real `symlx serve` flow for runtime changes.
+## Naming conventions
+
+1. Use descriptive names for resolved/final values (`finalOptions`, not temporary jokes/placeholders).
+2. Keep function names verb-based (`resolveOptions`, `validateConfigFileOptions`).
+3. Keep type names noun-based (`Options`, `SessionRecord`).
+
+## Change discipline
+
+1. Keep behavior changes and refactors scoped; avoid mixed-purpose commits.
+2. Update `IMPLEMENTATION.md` when behavior changes.
+3. Run `pnpm run check` and `pnpm run build` before merging behavior-affecting changes.

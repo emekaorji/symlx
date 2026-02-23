@@ -19,68 +19,95 @@ import { serveInlineOptionsSchema } from '../lib/schema';
 
 import type { Options } from '../lib/schema';
 import type { SessionRecord } from '../lib/types';
+import type { LinkCreationResult } from '../lib/types';
+import type { CollisionResolver } from '../lib/link-manager';
 
 // Prompts require an interactive terminal; scripts/CI should avoid prompt mode.
 function isInteractiveSession(): boolean {
   return Boolean(process.stdin.isTTY && process.stdout.isTTY);
 }
 
-// Main symlx behavior:
-// 1) resolve bins from package.json
-// 2) create links
-// 3) persist session
-// 4) keep process alive and cleanup on exit
-async function run(options: Options): Promise<void> {
-  const cwd = process.cwd();
-  const sessionDir = path.join(os.homedir(), '.symlx', 'sessions');
+type CollisionHandling = {
+  policy: Options['collision'];
+  collisionResolver?: CollisionResolver;
+};
 
-  // Prepare runtime directories and recover stale sessions from previous abnormal exits.
+function prepareRuntimeDirectories(binDir: string, sessionDir: string): void {
   cleanupStaleSessions(sessionDir);
-  ensureSymlxDirectories(options.binDir, sessionDir);
+  ensureSymlxDirectories(binDir, sessionDir);
+}
 
-  const bins = new Map(Object.entries(options.bin));
+function resolveCollisionHandling(options: Options): CollisionHandling {
+  if (options.collision !== 'prompt') {
+    return { policy: options.collision };
+  }
 
-  // Prompt policy only works when we can interact with a TTY.
-  const usePrompts =
-    options.collision === 'prompt' &&
-    !options.nonInteractive &&
-    isInteractiveSession();
-  if (options.collision === 'prompt' && !usePrompts) {
+  const canPrompt = !options.nonInteractive && isInteractiveSession();
+  if (!canPrompt) {
     log.warn(
       'prompt collision mode requested but session is non-interactive; falling back to skip',
     );
+    return { policy: 'skip' };
   }
 
-  // Link creation returns both successful links and explicit skips.
-  const linkResult = await createLinks({
-    bins,
-    binDir: options.binDir,
-    policy: options.collision,
-    collisionResolver: usePrompts ? promptCollisionDecision : undefined,
-  });
+  return {
+    policy: 'prompt',
+    collisionResolver: promptCollisionDecision,
+  };
+}
 
+async function linkCommands(
+  options: Options,
+  collisionHandling: CollisionHandling,
+): Promise<LinkCreationResult> {
+  return createLinks({
+    bins: new Map(Object.entries(options.bin)),
+    binDir: options.binDir,
+    policy: collisionHandling.policy,
+    collisionResolver: collisionHandling.collisionResolver,
+  });
+}
+
+function ensureLinksWereCreated(linkResult: LinkCreationResult): void {
   if (linkResult.created.length === 0) {
     throw new Error('no links were created');
   }
+}
 
-  // Session file is the source of truth for cleaning this exact run's links.
+function persistActiveSession(params: {
+  sessionDir: string;
+  cwd: string;
+  links: SessionRecord['links'];
+}): { sessionPath: string; sessionRecord: SessionRecord } {
+  const { sessionDir, cwd, links } = params;
+
   const sessionPath = createSessionFilePath(sessionDir);
   const sessionRecord: SessionRecord = {
     pid: process.pid,
     cwd,
     createdAt: new Date().toISOString(),
-    links: linkResult.created,
+    links,
   };
+
   persistSession(sessionPath, sessionRecord);
 
-  // Always cleanup linked commands when this process leaves.
-  registerLifecycleCleanup(() => {
-    cleanupSession(sessionPath, sessionRecord.links);
-  });
+  return { sessionPath, sessionRecord };
+}
 
+function registerSessionCleanup(
+  sessionPath: string,
+  links: SessionRecord['links'],
+): void {
+  registerLifecycleCleanup(() => {
+    cleanupSession(sessionPath, links);
+  });
+}
+
+function printLinkOutcome(binDir: string, linkResult: LinkCreationResult): void {
   const createdLinks = linkResult.created;
+
   log.info(
-    `linked ${createdLinks.length} command${createdLinks.length > 1 ? 's' : ''} into ${options.binDir}`,
+    `linked ${createdLinks.length} command${createdLinks.length > 1 ? 's' : ''} into ${binDir}`,
   );
   for (const link of createdLinks) {
     log.info(`${link.name} -> ${link.target}`);
@@ -89,19 +116,48 @@ async function run(options: Options): Promise<void> {
   for (const skip of linkResult.skipped) {
     log.warn(`skip "${skip.name}": ${skip.reason} (${skip.linkPath})`);
   }
+}
 
-  if (!pathContainsDir(process.env.PATH, options.binDir)) {
-    log.info(
-      `add this to your shell config if needed:\nexport PATH="${options.binDir}:$PATH"`,
-    );
+function printPathHintIfNeeded(binDir: string): void {
+  if (pathContainsDir(process.env.PATH, binDir)) {
+    return;
   }
+
+  log.info(
+    `add this to your shell config if needed:\nexport PATH="${binDir}:$PATH"`,
+  );
+}
+
+function waitIndefinitely(): Promise<void> {
+  return new Promise<void>(() => {
+    setInterval(() => undefined, 60_000);
+  });
+}
+
+async function run(options: Options): Promise<void> {
+  const cwd = process.cwd();
+  const sessionDir = path.join(os.homedir(), '.symlx', 'sessions');
+
+  prepareRuntimeDirectories(options.binDir, sessionDir);
+
+  const collisionHandling = resolveCollisionHandling(options);
+  const linkResult = await linkCommands(options, collisionHandling);
+
+  ensureLinksWereCreated(linkResult);
+
+  const { sessionPath, sessionRecord } = persistActiveSession({
+    sessionDir,
+    cwd,
+    links: linkResult.created,
+  });
+
+  registerSessionCleanup(sessionPath, sessionRecord.links);
+  printLinkOutcome(options.binDir, linkResult);
+  printPathHintIfNeeded(options.binDir);
 
   log.info('running. press Ctrl+C to cleanup links.');
 
-  // Keep process alive indefinitely; lifecycle handlers handle termination and cleanup.
-  await new Promise<void>(() => {
-    setInterval(() => undefined, 60_000);
-  });
+  await waitIndefinitely();
 }
 
 export function serveCommand(inlineOptions: unknown) {

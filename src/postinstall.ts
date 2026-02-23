@@ -16,8 +16,52 @@ function warn(message: string): void {
   process.stderr.write(`${PREFIX} ${message}\n`);
 }
 
+function printManualPathSetupGuidance(): void {
+  if (process.platform === 'win32') {
+    info('manual setup (PowerShell):');
+    info(
+      '[Environment]::SetEnvironmentVariable("Path", "$env:USERPROFILE\\\\.symlx\\\\bin;$env:Path", "User")',
+    );
+    info('then open a new terminal');
+    return;
+  }
+
+  info('manual setup: add this to ~/.zshrc, ~/.zprofile, or ~/.bashrc');
+  info(START);
+  info('if [[ ":$PATH:" != *":$HOME/.symlx/bin:"* ]]; then');
+  info('  export PATH="$HOME/.symlx/bin:$PATH"');
+  info('fi');
+  info(END);
+  info('then run: source ~/.zshrc (or your active shell profile)');
+}
+
 function resolveProfilePaths(homeDir: string): string[] {
   return PROFILE_BASENAMES.map((basename) => path.join(homeDir, basename));
+}
+
+function toHomeRelativePath(filePath: string, homeDir: string): string {
+  if (filePath.startsWith(`${homeDir}${path.sep}`)) {
+    return `~/${path.relative(homeDir, filePath)}`;
+  }
+  return filePath;
+}
+
+function getPreferredSourcePath(updatedPaths: string[]): string | undefined {
+  const shell = process.env.SHELL ?? '';
+  const preferredBasename = shell.includes('zsh')
+    ? '.zshrc'
+    : shell.includes('bash')
+      ? '.bashrc'
+      : undefined;
+
+  if (!preferredBasename) {
+    return updatedPaths[0];
+  }
+
+  return (
+    updatedPaths.find((filePath) => path.basename(filePath) === preferredBasename) ??
+    updatedPaths[0]
+  );
 }
 
 function escapeRegExp(value: string): string {
@@ -68,17 +112,20 @@ function upsertProfileBlock(filePath: string, block: string): boolean {
 function run(): void {
   if (process.env.SYMLX_SKIP_PATH_SETUP === '1') {
     info('skipping PATH setup because SYMLX_SKIP_PATH_SETUP=1');
+    printManualPathSetupGuidance();
     return;
   }
 
   if (process.platform === 'win32') {
     info('skipping shell profile PATH setup on Windows');
+    printManualPathSetupGuidance();
     return;
   }
 
   const homeDir = os.homedir();
   if (!homeDir) {
     warn('could not resolve home directory; skipping PATH setup');
+    printManualPathSetupGuidance();
     return;
   }
 
@@ -104,7 +151,12 @@ function run(): void {
     for (const target of updated) {
       info(`- ${target}`);
     }
-    info('open a new shell (or source your profile) to apply immediately');
+    const preferredSourcePath = getPreferredSourcePath(updated);
+    if (preferredSourcePath) {
+      const sourceTarget = toHomeRelativePath(preferredSourcePath, homeDir);
+      info(`run now: source ${sourceTarget}`);
+    }
+    info('or open a new shell to apply immediately');
   } else {
     info(`PATH setup already present (${BIN_PATH})`);
   }

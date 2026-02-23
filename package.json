@@ -15,6 +15,7 @@
     "build": "tsc -p tsconfig.json && chmod +x dist/cli.js",
     "watch": "tsc -p tsconfig.json --watch --preserveWatchOutput",
     "check": "tsc -p tsconfig.json --noEmit",
+    "preinstall": "node dist/preinstall.js",
     "postinstall": "node dist/postinstall.js",
     "prepack": "pnpm run build"
   },

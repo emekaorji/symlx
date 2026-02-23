@@ -3,18 +3,13 @@
 This file defines stable coding paradigms and style rules.
 Runtime behavior and current feature semantics are documented in `IMPLEMENTATION.md`.
 
-## Scope rule
-
-- `CONVENTIONS.md`: how code should be written.
-- `IMPLEMENTATION.md`: what the code currently does.
-
 ## Architecture conventions
 
 1. `src/cli.ts` defines command surface only (flags, descriptions, handler wiring).
 2. `src/commands/*` orchestrates command flow and side effects.
 3. `src/lib/*` contains reusable domain logic and pure helpers.
 4. `src/ui/*` is presentation-only (logs/prompts), not business decision logic.
-5. Cross-layer imports should flow inward (`cli -> commands -> lib/ui`), never the reverse.
+5. Cross-layer imports should flow inward (`cli -> commands -> lib/ui`), never the reverse (i.e. `commands/*` should not import from `cli`, `lib/*` or `ui/*` should not import from `commands/*` or `cli`).
 
 ## Validation and schema conventions
 
@@ -44,16 +39,24 @@ Runtime behavior and current feature semantics are documented in `IMPLEMENTATION
 
 ## TypeScript and style conventions
 
+> (should probably setup eslint)
+
 1. Keep strict typing enabled.
-2. Prefer explicit domain types over `any`.
+2. Prefer explicit domain types over `any` (no any🤮).
 3. Use single quotes and semicolons.
 4. Prefer small functions with single responsibility.
 5. Prefer named exports for reusable modules.
 6. Keep comments intent-focused ("why"), not narrating obvious syntax ("what").
 
+## Type location conventions
+
+1. Shared types must live in the shared types area (`src/lib/types.ts` or a future `src/types/*`).
+2. Single-use types should be defined close to where they are used.
+3. Promote a local type to shared when reused across modules.
+
 ## Naming conventions
 
-1. Use descriptive names for resolved/final values (`finalOptions`, not temporary jokes/placeholders).
+1. Use descriptive names, no abbreviations.
 2. Keep function names verb-based (`resolveOptions`, `validateConfigFileOptions`).
 3. Keep type names noun-based (`Options`, `SessionRecord`).
 

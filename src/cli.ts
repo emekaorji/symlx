@@ -5,6 +5,11 @@ import { Command } from 'commander';
 import * as log from './ui/logger';
 import { serveCommand } from './commands/serve';
 
+function collectBinEntry(value: string, previous: string[] = []): string[] {
+  previous.push(value);
+  return previous;
+}
+
 async function main(): Promise<void> {
   // Commander orchestrates top-level commands/options and help output.
   const program = new Command();
@@ -24,6 +29,12 @@ async function main(): Promise<void> {
       'prompt',
     )
     .option('--non-interactive', 'disable interactive prompts', false)
+    .option(
+      '--bin <name=path>',
+      'custom bin mapping (repeatable), e.g. --bin my-cli=./cli.js',
+      collectBinEntry,
+      [],
+    )
     .action(serveCommand);
 
   await program.parseAsync(process.argv);

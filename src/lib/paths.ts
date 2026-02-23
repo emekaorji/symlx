@@ -3,18 +3,10 @@ import path from 'node:path';
 
 import type { SymlxPaths } from './types';
 
-// Central place for runtime paths so every command/service resolves locations consistently.
-export function getSymlxPaths(customBinDir?: string): SymlxPaths {
-  // symlx keeps mutable runtime state under the user's home directory.
-  const rootSymlxDir = path.join(os.homedir(), '.symlx');
-
-  // Commands are linked here unless the caller overrides with --bin-dir.
-  const binDir = customBinDir
-    ? path.resolve(customBinDir)
-    : path.join(rootSymlxDir, 'bin');
-
+export function getSymlxPaths(binDir: string): SymlxPaths {
+  // Keep mutable runtime state under the user's home directory.
   // Session files live separately from bins and are used for stale cleanup.
-  const sessionDir = path.join(rootSymlxDir, 'sessions');
+  const sessionDir = path.join(os.homedir(), '.symlx', 'sessions');
 
   return { binDir, sessionDir };
 }

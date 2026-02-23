@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 import {
   configFileOptionsSchema,
+  PackageJSONOptions,
+  packageJSONOptionsSchema,
   type ConfigFileOptions,
   type Options,
 } from './schema';
@@ -16,14 +18,12 @@ function formatIssues(error: z.ZodError): string {
   return details || 'invalid input';
 }
 
-export function validateInlineOptions<TSchema extends z.ZodTypeAny>(
-  schema: TSchema,
-  input: unknown,
-  label = 'input',
-): z.infer<TSchema> {
-  const result = schema.safeParse(input || {});
+export function validatePackageJSONOptions(
+  input: { bin: Record<string, string> } | undefined,
+): PackageJSONOptions {
+  const result = packageJSONOptionsSchema.safeParse(input || {});
   if (!result.success) {
-    throw new Error(`invalid ${label}: ${formatIssues(result.error)}`);
+    return { bin: {} };
   }
   return result.data;
 }
@@ -33,6 +33,18 @@ export function validateConfigFileOptions(
   label = 'input',
 ): ConfigFileOptions {
   const result = configFileOptionsSchema.safeParse(input || {});
+  if (!result.success) {
+    throw new Error(`invalid ${label}: ${formatIssues(result.error)}`);
+  }
+  return result.data;
+}
+
+export function validateInlineOptions<TSchema extends z.ZodTypeAny>(
+  schema: TSchema,
+  input: unknown,
+  label = 'input',
+): z.infer<TSchema> {
+  const result = schema.safeParse(input || {});
   if (!result.success) {
     throw new Error(`invalid ${label}: ${formatIssues(result.error)}`);
   }

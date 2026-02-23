@@ -2,7 +2,6 @@ import type { SessionRecord } from '../lib/types';
 import { getSymlxPaths, pathContainsDir } from '../lib/paths';
 import { createLinks } from '../services/link-manager';
 import { registerLifecycleCleanup } from '../services/lifecycle';
-import { readBins } from '../services/package-bins';
 import {
   cleanupSession,
   cleanupStaleSessions,
@@ -33,7 +32,7 @@ async function run(options: Options): Promise<void> {
   cleanupStaleSessions(paths.sessionDir);
   ensureSymlxDirectories(paths.binDir, paths.sessionDir);
 
-  const bins = readBins(cwd);
+  const bins = new Map(Object.entries(options.bin));
 
   // Prompt policy only works when we can interact with a TTY.
   const usePrompts =
@@ -99,7 +98,8 @@ async function run(options: Options): Promise<void> {
 }
 
 export function serveCommand(inlineOptions: unknown) {
-  const options = resolveOptions(serveInlineOptionsSchema, inlineOptions);
+  const cwd = process.cwd();
+  const options = resolveOptions(cwd, serveInlineOptionsSchema, inlineOptions);
 
   return run(options);
 }

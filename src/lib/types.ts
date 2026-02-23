@@ -47,9 +47,3 @@ export type LinkCreationResult = {
   created: LinkRecord[];
   skipped: LinkSkip[];
 };
-
-// Canonical directories used by symlx at runtime.
-export type SymlxPaths = {
-  binDir: string;
-  sessionDir: string;
-};

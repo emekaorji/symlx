@@ -36,11 +36,15 @@ const binEntriesToRecordSchema = z
   );
 
 // -------------------------------------------
+// package.json Schema: Just bin for now
+// -------------------------------------------
 
 const packageJSONOptionsSchema = z.object({
   bin: binRecordSchema.optional().catch(undefined),
 });
 
+// -------------------------------------------
+// symlx.config.json options: should allow configuring all options
 // -------------------------------------------
 
 const configFileOptionsSchema = z.object({
@@ -69,6 +73,8 @@ const configFileOptionsSchema = z.object({
   binResolutionStrategy: z.enum(['replace', 'merge']).optional(),
 });
 
+// -------------------------------------------
+// varying command inline options: highest priority in field:value resolution
 // -------------------------------------------
 
 const serveInlineOptionsSchema = configFileOptionsSchema

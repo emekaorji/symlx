@@ -1,5 +1,8 @@
+import path from 'path';
+import os from 'node:os';
+
 import type { SessionRecord } from '../lib/types';
-import { getSymlxPaths, pathContainsDir } from '../lib/paths';
+import { pathContainsDir } from '../lib/paths';
 import { createLinks } from '../services/link-manager';
 import { registerLifecycleCleanup } from '../services/lifecycle';
 import {
@@ -26,11 +29,11 @@ function isInteractiveSession(): boolean {
 // 4) keep process alive and cleanup on exit
 async function run(options: Options): Promise<void> {
   const cwd = process.cwd();
-  const paths = getSymlxPaths(options.binDir);
+  const sessionDir = path.join(os.homedir(), '.symlx', 'sessions');
 
   // Prepare runtime directories and recover stale sessions from previous abnormal exits.
-  cleanupStaleSessions(paths.sessionDir);
-  ensureSymlxDirectories(paths.binDir, paths.sessionDir);
+  cleanupStaleSessions(sessionDir);
+  ensureSymlxDirectories(options.binDir, sessionDir);
 
   const bins = new Map(Object.entries(options.bin));
 
@@ -48,7 +51,7 @@ async function run(options: Options): Promise<void> {
   // Link creation returns both successful links and explicit skips.
   const linkResult = await createLinks({
     bins,
-    binDir: paths.binDir,
+    binDir: options.binDir,
     policy: options.collision,
     collisionResolver: usePrompts ? promptCollisionDecision : undefined,
   });
@@ -58,7 +61,7 @@ async function run(options: Options): Promise<void> {
   }
 
   // Session file is the source of truth for cleaning this exact run's links.
-  const sessionPath = createSessionFilePath(paths.sessionDir);
+  const sessionPath = createSessionFilePath(sessionDir);
   const sessionRecord: SessionRecord = {
     pid: process.pid,
     cwd,
@@ -73,7 +76,7 @@ async function run(options: Options): Promise<void> {
   });
 
   log.info(
-    `linked ${linkResult.created.length} command(s) into ${paths.binDir}`,
+    `linked ${linkResult.created.length} command(s) into ${options.binDir}`,
   );
   for (const link of linkResult.created) {
     log.info(`${link.name} -> ${link.target}`);
@@ -83,9 +86,9 @@ async function run(options: Options): Promise<void> {
     log.warn(`skip "${skip.name}": ${skip.reason} (${skip.linkPath})`);
   }
 
-  if (!pathContainsDir(process.env.PATH, paths.binDir)) {
+  if (!pathContainsDir(process.env.PATH, options.binDir)) {
     log.info(
-      `add this to your shell config if needed:\nexport PATH="${paths.binDir}:$PATH"`,
+      `add this to your shell config if needed:\nexport PATH="${options.binDir}:$PATH"`,
     );
   }
 

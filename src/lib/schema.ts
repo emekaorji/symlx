@@ -10,7 +10,10 @@ const binTargetSchema = z
   .string()
   .trim()
   .min(1)
-  .regex(/^\.{1,2}\//, 'bin target must be a relative path like ./cli.js');
+  .regex(
+    /^(?!\/)(?![A-Za-z]:[\\/])(?!(?:\\\\|\/\/)).+/,
+    'bin target must be a relative path like ./cli.js',
+  );
 
 const binRecordSchema = z.record(binNameSchema, binTargetSchema);
 
@@ -40,7 +43,10 @@ const binEntriesToRecordSchema = z
 // -------------------------------------------
 
 const packageJSONOptionsSchema = z.object({
-  bin: binRecordSchema.optional().catch(undefined),
+  bin: binRecordSchema.optional().catch((ctx) => {
+    console.log(ctx.issues);
+    return undefined;
+  }),
 });
 
 // -------------------------------------------

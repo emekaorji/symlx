@@ -51,6 +51,18 @@ function computeResolvedBin(
         : DEFAULT_OPTIONS.bin;
 }
 
+function withCwdPrefixedBin(
+  cwd: string,
+  bin: Record<string, string>,
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(bin).map(([name, target]) => [
+      name,
+      path.resolve(cwd, target),
+    ]),
+  );
+}
+
 // Function to aggregate all options from different sources in order or priority
 export function resolveOptions<TSchema extends z.ZodTypeAny>(
   cwd: string,
@@ -59,8 +71,10 @@ export function resolveOptions<TSchema extends z.ZodTypeAny>(
 ): Options {
   // Load the bin from package.json
   const packageJSONOptions = loadPackageJSONOptions(cwd);
+  console.log(packageJSONOptions);
   const validatedPackageJSONOptions =
     validatePackageJSONOptions(packageJSONOptions);
+  console.log(validatedPackageJSONOptions);
 
   // Load and validate the options from the config file,
   // silently overriding invalid non-critical values with defaults or inline based on order of priority
@@ -94,9 +108,11 @@ export function resolveOptions<TSchema extends z.ZodTypeAny>(
     finalOptions.binResolutionStrategy,
   );
 
+  console.log(resolvedBin);
+
   const finalfinalOptionsIPromise = {
     ...finalOptions,
-    bin: resolvedBin,
+    bin: withCwdPrefixedBin(cwd, resolvedBin),
   };
 
   if (!Object.entries(finalfinalOptionsIPromise.bin).length) {

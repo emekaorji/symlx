@@ -64,11 +64,11 @@ export function loadPackageJSONOptions(cwd: string): {
   if (typeof packageJson.bin === 'string') {
     const inferredBinName = inferBinName(packageJson.name);
     if (inferredBinName) {
-      bin[inferredBinName] = path.resolve(cwd, packageJson.bin);
+      bin[inferredBinName] = packageJson.bin;
     }
   } else {
     for (const [name, relTarget] of Object.entries(packageJson.bin)) {
-      bin[name] = path.resolve(cwd, relTarget);
+      bin[name] = relTarget;
     }
   }
 

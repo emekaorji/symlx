@@ -20,8 +20,8 @@ const binRecordSchema = z.record(binNameSchema, binTargetSchema);
 const binEntrySchema = z
   .string()
   .regex(
-    /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?=\.{1,2}\/.+$/,
-    'expected <name=./relative/path>',
+    /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?=(?!\/)(?![A-Za-z]:[\\/])(?!(?:\\\\|\/\/)).+$/,
+    'expected <name=relative/path>',
   );
 
 const binEntriesToRecordSchema = z

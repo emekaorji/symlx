@@ -67,6 +67,7 @@ symlx serve
 Outcome:
 
 - bin name inferred from package name (`my-cli`)
+- command works as `my-cli --help`
 - linked and cleaned on exit
 
 ## 3) Inline only (no package bin)
@@ -80,6 +81,7 @@ symlx serve --bin admin=dist/admin.js
 Outcome:
 
 - `admin` command is linked from inline mapping
+- command works as `admin --help`
 
 ## 4) Merge strategy across all sources
 
@@ -103,13 +105,14 @@ symlx serve --bin inline-tool=dist/inline.js
 Outcome:
 
 - bins are merged from package + config + inline
+- in this case, both `cfg-tool --help` and `inline-tool --help` works
 
 ## 5) Custom bin directory
 
 Run:
 
 ```bash
-symlx serve --bin-dir ~/.symlx/bin
+symlx serve --bin-dir ~/.not-symlx/bin
 ```
 
 Outcome:
@@ -196,6 +199,7 @@ Outcome:
   - inline
   - config
   - package
+- i.e. if bin is specified inline, bin from the config or package.json is ignored
 
 ## 12) Merge strategy from CLI
 
@@ -217,7 +221,7 @@ Run in directory without `package.json` and without any config/inline bins.
 
 Outcome:
 
-- explicit error: package.json not found
+- explicit error: "package.json not found"
 
 ## 14) Invalid `package.json` JSON
 
@@ -354,3 +358,4 @@ Outcome:
 - switch collision policy to:
   - `--collision overwrite`
   - `--collision fail`
+

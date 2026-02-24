@@ -2,13 +2,13 @@
 
 Temporary command linker for local CLI development.
 
-`symlx serve` links command names from your project into a runnable bin directory for the lifetime of the process.  
+`symlx serve` links command names from your project into a runnable bin directory for the lifetime of the process.
 When `symlx` stops, those links are cleaned up.
 
 ## Why symlx
 
-During CLI development, running `node dist/cli.js` repeatedly is noisy.  
-`npm link` has generally been buggy and slow to pick recent code changes.  
+During CLI development, running `node dist/cli.js` repeatedly is noisy.
+`npm link` has generally been buggy and slow to pick recent code changes.
 `symlx` gives you the real command experience (`my-cli --help`) without a global publish/install cycle.
 
 Core guarantees:
@@ -32,9 +32,9 @@ In a CLI project with:
 
 ```json
 {
-  "name": "my-tool",
+  "name": "my-cli",
   "bin": {
-    "my-tool": "./dist/cli.js"
+    "my-cli": "./dist/cli.js"
   }
 }
 ```
@@ -48,7 +48,7 @@ symlx serve
 Then use your CLI normally:
 
 ```bash
-my-tool --help
+my-cli --help
 ```
 
 Stop `symlx` with `Ctrl+C` to clean links.
@@ -91,9 +91,8 @@ Scalar fields (`collision`, `binDir`, `nonInteractive`, `binResolutionStrategy`)
 
 `bin` uses strategy mode:
 
-- `replace` (default): first non-empty wins by priority  
-  `inline > config > package.json > default`
-- `merge`: combines all  
+- `replace` (default): first non-empty wins by priority`inline > config > package.json > default`
+- `merge`: combines all
   `package.json + config + inline` (right-most source overrides key collisions)
 
 ## Supported Bin Sources
@@ -104,7 +103,7 @@ Scalar fields (`collision`, `binDir`, `nonInteractive`, `binResolutionStrategy`)
 
 ```json
 {
-  "name": "my-tool",
+  "name": "my-cli",
   "bin": "./dist/cli.js"
 }
 ```
@@ -112,7 +111,7 @@ Scalar fields (`collision`, `binDir`, `nonInteractive`, `binResolutionStrategy`)
 ```json
 {
   "bin": {
-    "my-tool": "./dist/cli.js",
+    "my-cli": "./dist/cli.js",
     "my-admin": "./dist/admin.js"
   }
 }
@@ -129,7 +128,7 @@ If `bin` is a string, `name` is required so command name can be inferred.
   "nonInteractive": false,
   "binResolutionStrategy": "replace",
   "bin": {
-    "my-tool": "./dist/cli.js"
+    "my-cli": "./dist/cli.js"
   }
 }
 ```
@@ -142,7 +141,7 @@ Notes:
 ## Inline Flags
 
 ```bash
-symlx serve --bin my-tool=dist/cli.js
+symlx serve --bin my-cli=dist/cli.js
 
 # multiple inline bins
 symlx serve \

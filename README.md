@@ -53,6 +53,17 @@ my-cli --help
 
 Stop `symlx` with `Ctrl+C` to clean links.
 
+## Alias
+
+`symlx` can be clackful for power users, hence its alias: `cx`.
+
+Equivalent commands:
+
+```bash
+symlx serve
+cx serve
+```
+
 ## Command Reference
 
 ## `symlx serve`

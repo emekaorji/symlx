@@ -99,3 +99,46 @@ test('invalid package.json produces a targeted error message', () => {
     },
   );
 });
+
+test('missing package.json fails with targeted path error when no inline/config bins are provided', () => {
+  withTempProject(
+    () => undefined,
+    (dirPath) => {
+      assert.throws(
+        () => resolveOptions(dirPath, serveInlineOptionsSchema, {}),
+        /package\.json not found/,
+      );
+    },
+  );
+});
+
+test('inline bins work without package.json', () => {
+  withTempProject(
+    () => undefined,
+    (dirPath) => {
+      const options = resolveOptions(dirPath, serveInlineOptionsSchema, {
+        bin: ['inline-tool=dist/inline.js'],
+      });
+
+      assert.deepEqual(Object.keys(options.bin), ['inline-tool']);
+      assert.equal(
+        options.bin['inline-tool'],
+        path.resolve(dirPath, 'dist/inline.js'),
+      );
+    },
+  );
+});
+
+test('invalid symlx.config.json parse fails with targeted message', () => {
+  withTempProject(
+    (dirPath) => {
+      fs.writeFileSync(path.join(dirPath, 'symlx.config.json'), '{"bin":');
+    },
+    (dirPath) => {
+      assert.throws(
+        () => resolveOptions(dirPath, serveInlineOptionsSchema, {}),
+        /invalid symlx\.config\.json/,
+      );
+    },
+  );
+});

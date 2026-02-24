@@ -1,7 +1,7 @@
 # Symlx Code Conventions
 
 This file defines stable coding paradigms and style rules.
-Runtime behavior and current feature semantics are documented in `IMPLEMENTATION.md`.
+Runtime behavior and command scenarios are documented in `usage/*.md`.
 
 ## Architecture conventions
 
@@ -63,5 +63,5 @@ Runtime behavior and current feature semantics are documented in `IMPLEMENTATION
 ## Change discipline
 
 1. Keep behavior changes and refactors scoped; avoid mixed-purpose commits.
-2. Update `IMPLEMENTATION.md` when behavior changes.
+2. Update relevant command usage docs in `usage/*.md` when behavior changes.
 3. Run `pnpm run check` and `pnpm run build` before merging behavior-affecting changes.

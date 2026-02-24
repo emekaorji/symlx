@@ -1,0 +1,25 @@
+- expand command surface.
+  - `symlx link` - one-shot link creation without long-running keepalive mode.
+  - `symlx unlink` - removes links for the current project (or selected command names).
+  - `symlx status` - shows active `symlx` session(s), linked commands, and target paths.
+  - `symlx list` - resolved bins + source: package/config.
+  - `symlx stop` - shows all running sessions by PID/session id and allow the user to select any for cleanup.
+  - `symlx cleanup` - manual stale session cleanup and broken/orphan links.
+  - `symlx doctor` - checks PATH, profile config, permissions, collisions, and reports fixes.
+  - `symlx setup` - add the marker-managed block to the shell profile and set up session management
+  - `symlx teardown` - removes the profile block added by `setup`.
+  - `symlx which <cmd>` - shows where a linked command points and which session owns it.
+  - `symlx config` - `init/get/set/print` for `symlx` config resolution.
+  - `symlx run -- <command>` - temporarily links bins, runs one command, then auto-cleans immediately.
+- strengthen config model.
+  - add a global config file inside `~/.symlx/global-config.json`, effectively introducing a new config layer: default -> global config -> package.json (`bin` only) -> project config -> inline options.
+  - `include`/`exclude` filters.
+  - session TTL / auto-expiry policy. (start counting this after the last time the session was used - a session is used when the bin it links is called)
+  - optional strict mode (`warn` vs `fail` behavior).
+- add Windows strategy (this cli barely supports window at the moment, which is very bad).
+- observability and ops.
+  - add lightweight session metrics (your TODO about call count/feedback).
+  - optional debug logging mode.
+  - track cleanup outcomes for stale sessions.
+- add uninstall command to script to remove `symlx` specific data from the system.
+- configure more shells (fish, pwsh, etc).

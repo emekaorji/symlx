@@ -27,6 +27,8 @@ export function validatePackageJSONOptions(
   return { ...result.data, issues: [] };
 }
 
+// it's better ux/dx to throw if there's an error in the config file
+// provided it's available than falling back to defaults and leaving the user guessing
 export function validateConfigFileOptions(
   input: unknown,
   label = 'input',

@@ -26,7 +26,7 @@ function isProcessAlive(pid: number): boolean {
 
 // Removes only symlinks that still point to the exact targets we created.
 // This avoids deleting user-managed commands with the same name.
-function cleanupLinks(links: LinkRecord[]): void {
+export function cleanupLinks(links: LinkRecord[]): void {
   for (const link of links) {
     try {
       const stats = fs.lstatSync(link.linkPath);
@@ -98,6 +98,24 @@ export function cleanupStaleSessions(sessionDir: string): void {
   }
 }
 
+// Produces unique session file names to avoid collisions across concurrent runs.
+export function generateSessionFilePath(sessionDir: string): string {
+  const unique = `${Date.now()}-${process.pid}-${Math.random().toString(36).slice(2, 8)}`;
+  return path.join(sessionDir, `${unique}.json`);
+}
+
+export function generateSessionRecord(
+  cwd: string,
+  links: SessionRecord['links'],
+): SessionRecord {
+  return {
+    pid: process.pid,
+    cwd,
+    createdAt: new Date().toISOString(),
+    links,
+  };
+}
+
 // Persists currently linked commands so future runs can clean stale state.
 export function persistSession(
   sessionPath: string,
@@ -106,14 +124,46 @@ export function persistSession(
   fs.writeFileSync(sessionPath, `${JSON.stringify(record, null, 2)}\n`, 'utf8');
 }
 
-// Produces unique session file names to avoid collisions across concurrent runs.
-export function createSessionFilePath(sessionDir: string): string {
-  const unique = `${Date.now()}-${process.pid}-${Math.random().toString(36).slice(2, 8)}`;
-  return path.join(sessionDir, `${unique}.json`);
-}
+// Registers robust process-exit handling so linked commands are removed reliably.
+// Cleanup is idempotent and can be triggered by normal exit, signals, or fatal errors.
+export function registerLifecycleSessionCleanup(
+  sessionPath: string,
+  links: LinkRecord[],
+): void {
+  let cleaned = false;
 
-// Cleanup for the active process/session.
-export function cleanupSession(sessionPath: string, links: LinkRecord[]): void {
-  cleanupLinks(links);
-  deleteFile(sessionPath);
+  const runCleanup = (): void => {
+    if (cleaned) {
+      return;
+    }
+    cleaned = true;
+    cleanupLinks(links);
+    deleteFile(sessionPath);
+  };
+
+  // Normal termination path.
+  process.on('exit', runCleanup);
+
+  const onSignal = (): void => {
+    runCleanup();
+    process.exit(0);
+  };
+
+  // Common interactive stop signals.
+  process.on('SIGINT', onSignal);
+  process.on('SIGTERM', onSignal);
+  process.on('SIGHUP', onSignal);
+
+  // Fatal process events still attempt cleanup before exiting with failure.
+  process.on('uncaughtException', (error) => {
+    process.stderr.write(`[symlx] uncaught exception: ${String(error)}\n`);
+    runCleanup();
+    process.exit(1);
+  });
+
+  process.on('unhandledRejection', (reason) => {
+    process.stderr.write(`[symlx] unhandled rejection: ${String(reason)}\n`);
+    runCleanup();
+    process.exit(1);
+  });
 }

@@ -2,7 +2,9 @@ import z from 'zod';
 import path from 'path';
 import os from 'node:os';
 
-import type { Options } from './schema';
+import * as log from '../ui/logger';
+
+import type { CollisionOption, Options } from './schema';
 import { loadConfigFileOptions, loadPackageJSONOptions } from './utils';
 import {
   validateConfigFileOptions,
@@ -63,6 +65,10 @@ function withCwdPrefixedBin(
   );
 }
 
+function isInteractiveSession() {
+  return Boolean(process.stdin.isTTY && process.stdout.isTTY);
+}
+
 // Function to aggregate all options from different sources in order or priority
 export function resolveOptions<TSchema extends z.ZodTypeAny>(
   cwd: string,
@@ -70,25 +76,15 @@ export function resolveOptions<TSchema extends z.ZodTypeAny>(
   inlineOptions?: unknown,
 ): Options {
   const packageJSONLoadResult = loadPackageJSONOptions(cwd);
-  const validatedPackageJSONOptions =
-    validatePackageJSONOptions(packageJSONLoadResult);
+  const validatedPackageJSONOptions = validatePackageJSONOptions(
+    packageJSONLoadResult,
+  );
   const packageJSONIssues = [
     ...packageJSONLoadResult.issues,
     ...validatedPackageJSONOptions.issues,
   ];
 
-  const fatalPackageIssue = packageJSONIssues.find((issue) =>
-    issue.startsWith('invalid package.json'),
-  );
-  if (fatalPackageIssue) {
-    throw new Error(fatalPackageIssue);
-  }
-
   const configFileLoadResult = loadConfigFileOptions(cwd);
-  if (configFileLoadResult.issue) {
-    throw new Error(configFileLoadResult.issue);
-  }
-
   const validatedConfigFileOptions = validateConfigFileOptions(
     configFileLoadResult.options,
   );
@@ -120,9 +116,21 @@ export function resolveOptions<TSchema extends z.ZodTypeAny>(
   };
 
   if (Object.keys(finalOptions.bin).length > 0) {
+    if (
+      finalOptions.binResolutionStrategy === 'merge' &&
+      packageJSONIssues.length > 0
+    ) {
+      log.warn(
+        [
+          'bin resolution strategy is merge, but could not resolve bin from package.json:',
+          ...packageJSONIssues,
+        ].join('\n'),
+      );
+    }
     return finalOptions;
   }
 
+  // only throw package.json error if no bin was resolved
   const primaryIssue = packageJSONIssues[0];
   if (primaryIssue) {
     throw new Error(primaryIssue);
@@ -137,4 +145,19 @@ export function resolveOptions<TSchema extends z.ZodTypeAny>(
       '3) inline CLI -> symlx serve --bin my-cli=./cli.js',
     ].join('\n'),
   );
+}
+
+export function resolveInternalCollisionOption(
+  collisionOptions: Options['collision'],
+  nonInteractiveOptions: Options['nonInteractive'],
+): CollisionOption {
+  if (collisionOptions !== 'prompt') {
+    return collisionOptions;
+  }
+
+  if (nonInteractiveOptions || !isInteractiveSession()) {
+    return 'skip';
+  }
+
+  return 'prompt';
 }

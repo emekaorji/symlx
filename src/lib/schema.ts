@@ -38,6 +38,8 @@ const binEntriesToRecordSchema = z
       ),
   );
 
+const collisionOptionEnum = z.enum(['prompt', 'skip', 'fail', 'overwrite']);
+
 // -------------------------------------------
 // package.json Schema: Just bin for now
 // -------------------------------------------
@@ -58,13 +60,10 @@ const configFileOptionsSchema = z.object({
       'binDir must include a dotted folder segment',
     )
     .optional(),
-  collision: z
-    .enum(['prompt', 'skip', 'fail', 'overwrite'])
-    .optional()
-    .catch(() => {
-      log.warn('invalid "collision" value in config file; using default.');
-      return undefined;
-    }),
+  collision: collisionOptionEnum.optional().catch(() => {
+    log.warn('invalid "collision" value in config file; using default.');
+    return undefined;
+  }),
   nonInteractive: z
     .boolean()
     .optional()
@@ -95,6 +94,7 @@ const serveInlineOptionsSchema = configFileOptionsSchema
 export type PackageJSONOptions = z.infer<typeof packageJSONOptionsSchema>;
 export type ConfigFileOptions = z.infer<typeof configFileOptionsSchema>;
 export type Options = Required<ConfigFileOptions>;
+export type CollisionOption = z.infer<typeof collisionOptionEnum>;
 
 export {
   packageJSONOptionsSchema,

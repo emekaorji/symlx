@@ -52,8 +52,9 @@ export function loadConfigFileOptions(cwd: string): {
     configPath,
     'symlx.config.json',
   );
+  // throw error if there were file reading issues
   if (result.issue) {
-    return { issue: result.issue };
+    throw new Error(result.issue);
   }
 
   return { options: result.data };

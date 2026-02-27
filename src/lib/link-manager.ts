@@ -3,15 +3,11 @@ import path from 'node:path';
 
 import type {
   CollisionDecision,
-  CollisionPolicy,
   LinkConflict,
   LinkCreationResult,
 } from './types';
-
-// Injected prompt/decision hook used only when collision policy is interactive.
-export type CollisionResolver = (
-  conflict: LinkConflict,
-) => Promise<CollisionDecision>;
+import { CollisionOption } from './schema';
+import { promptCollisionResolver } from '../ui/prompts';
 
 type ExistingNode = {
   stats: fs.Stats;
@@ -92,20 +88,21 @@ function toConflict(
 
 // Creates symlinks for all project bins according to the selected collision strategy.
 // This function is pure with regard to policy: caller decides interactive vs non-interactive.
-export async function createLinks(params: {
-  bins: Map<string, string>;
-  binDir: string;
-  policy: CollisionPolicy;
-  collisionResolver?: CollisionResolver;
-}): Promise<LinkCreationResult> {
-  const { bins, binDir, policy, collisionResolver } = params;
+export async function createLinks(
+  bins: Record<string, string>,
+  binDir: string,
+  collisionOption: CollisionOption,
+): Promise<LinkCreationResult> {
   const created = [];
   const skipped = [];
 
-  for (const [name, target] of bins.entries()) {
+  // Link every executable in the bin options
+  for (const [name, target] of Object.entries(bins)) {
     const linkPath = path.join(binDir, name);
+    // check is there's an existing binary on the device
     const existingNode = inspectExistingNode(linkPath);
 
+    // If there's a conflicting binary, handle the conflict
     if (existingNode) {
       const conflict = toConflict(name, linkPath, target, existingNode);
 
@@ -122,26 +119,24 @@ export async function createLinks(params: {
         continue;
       }
 
-      let decision: CollisionDecision;
-      if (policy === 'skip') {
-        decision = 'skip';
-      } else if (policy === 'overwrite') {
-        decision = 'overwrite';
-      } else if (policy === 'fail') {
+      if (collisionOption === 'fail') {
         throw new Error(
           `command "${name}" conflicts at ${linkPath}: ${conflict.reason}`,
         );
+      }
+
+      let collisionDecision: CollisionDecision;
+      if (collisionOption === 'prompt') {
+        collisionDecision = await promptCollisionResolver(conflict);
+        if (collisionDecision === 'abort') {
+          throw new Error(`aborted on collision for command "${name}"`);
+        }
       } else {
-        decision = collisionResolver
-          ? await collisionResolver(conflict)
-          : 'skip';
+        // After here, resulting decision can only either be 'skip' or 'overwrite'
+        collisionDecision = collisionOption;
       }
 
-      if (decision === 'abort') {
-        throw new Error(`aborted on collision for command "${name}"`);
-      }
-
-      if (decision === 'skip') {
+      if (collisionDecision === 'skip') {
         skipped.push({ name, linkPath, reason: conflict.reason });
         continue;
       }

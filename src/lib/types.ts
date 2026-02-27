@@ -35,6 +35,11 @@ export type LinkConflict = {
   isSymlink: boolean;
 };
 
+// Interactive collision resolver used by prompt-style flows.
+export type CollisionResolver = (
+  conflict: LinkConflict,
+) => Promise<CollisionDecision>;
+
 // A command that symlx intentionally did not link.
 export type LinkSkip = {
   name: string;

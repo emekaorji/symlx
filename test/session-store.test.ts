@@ -5,9 +5,10 @@ import path from 'node:path';
 import { test } from 'node:test';
 
 import {
-  cleanupSession,
+  cleanupLinks,
   cleanupStaleSessions,
-  createSessionFilePath,
+  generateSessionFilePath,
+  generateSessionRecord,
   ensureSymlxDirectories,
   persistSession,
 } from '../src/lib/session-store';
@@ -43,7 +44,7 @@ test('ensureSymlxDirectories creates bin and session directories', () => {
   });
 });
 
-test('cleanupSession removes tracked symlink and session file', { skip: isWindows }, () => {
+test('cleanupLinks removes tracked symlink when target matches', { skip: isWindows }, () => {
   withTempDir((dirPath) => {
     const target = path.join(dirPath, 'dist', 'cli.js');
     createExecutable(target);
@@ -52,19 +53,14 @@ test('cleanupSession removes tracked symlink and session file', { skip: isWindow
     fs.mkdirSync(path.dirname(linkPath), { recursive: true });
     fs.symlinkSync(target, linkPath);
 
-    const sessionPath = path.join(dirPath, 'sessions', 's1.json');
-    fs.mkdirSync(path.dirname(sessionPath), { recursive: true });
-    fs.writeFileSync(sessionPath, '{}');
-
     const links: LinkRecord[] = [{ name: 'my-cli', linkPath, target }];
-    cleanupSession(sessionPath, links);
+    cleanupLinks(links);
 
     assert.equal(fs.existsSync(linkPath), false);
-    assert.equal(fs.existsSync(sessionPath), false);
   });
 });
 
-test('cleanupSession does not remove symlink when target mismatch', { skip: isWindows }, () => {
+test('cleanupLinks does not remove symlink when target mismatch', { skip: isWindows }, () => {
   withTempDir((dirPath) => {
     const expectedTarget = path.join(dirPath, 'dist', 'cli.js');
     const actualTarget = path.join(dirPath, 'dist', 'other.js');
@@ -75,17 +71,12 @@ test('cleanupSession does not remove symlink when target mismatch', { skip: isWi
     fs.mkdirSync(path.dirname(linkPath), { recursive: true });
     fs.symlinkSync(actualTarget, linkPath);
 
-    const sessionPath = path.join(dirPath, 'sessions', 's1.json');
-    fs.mkdirSync(path.dirname(sessionPath), { recursive: true });
-    fs.writeFileSync(sessionPath, '{}');
-
     const links: LinkRecord[] = [
       { name: 'my-cli', linkPath, target: expectedTarget },
     ];
-    cleanupSession(sessionPath, links);
+    cleanupLinks(links);
 
     assert.equal(fs.existsSync(linkPath), true);
-    assert.equal(fs.existsSync(sessionPath), false);
   });
 });
 
@@ -102,7 +93,7 @@ test('cleanupStaleSessions removes stale sessions and non-json files', { skip: i
     fs.mkdirSync(path.dirname(linkPath), { recursive: true });
     fs.symlinkSync(target, linkPath);
 
-    const sessionPath = createSessionFilePath(sessionDir);
+    const sessionPath = generateSessionFilePath(sessionDir);
     persistSession(sessionPath, {
       pid: -1,
       cwd: dirPath,
@@ -130,7 +121,7 @@ test('cleanupStaleSessions keeps active sessions for live pids', { skip: isWindo
     fs.mkdirSync(path.dirname(linkPath), { recursive: true });
     fs.symlinkSync(target, linkPath);
 
-    const sessionPath = createSessionFilePath(sessionDir);
+    const sessionPath = generateSessionFilePath(sessionDir);
     persistSession(sessionPath, {
       pid: process.pid,
       cwd: dirPath,
@@ -143,4 +134,27 @@ test('cleanupStaleSessions keeps active sessions for live pids', { skip: isWindo
     assert.equal(fs.existsSync(sessionPath), true);
     assert.equal(fs.existsSync(linkPath), true);
   });
+});
+
+test('generateSessionFilePath creates json path inside session dir', () => {
+  withTempDir((dirPath) => {
+    const sessionDir = path.join(dirPath, '.symlx', 'sessions');
+    const sessionPath = generateSessionFilePath(sessionDir);
+
+    assert.equal(path.dirname(sessionPath), sessionDir);
+    assert.match(path.basename(sessionPath), /\.json$/);
+  });
+});
+
+test('generateSessionRecord uses current pid and provided values', () => {
+  const links: LinkRecord[] = [
+    { name: 'tool', linkPath: '/tmp/tool', target: '/tmp/cli.js' },
+  ];
+  const cwd = '/tmp/project';
+  const record = generateSessionRecord(cwd, links);
+
+  assert.equal(record.pid, process.pid);
+  assert.equal(record.cwd, cwd);
+  assert.deepEqual(record.links, links);
+  assert.equal(typeof record.createdAt, 'string');
 });

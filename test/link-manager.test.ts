@@ -30,11 +30,7 @@ test('createLinks creates new symlinks for non-conflicting bins', { skip: isWind
 
     const target = createTargetFile(dirPath, 'cli.js');
 
-    const result = await createLinks({
-      bins: new Map([['my-cli', target]]),
-      binDir,
-      policy: 'fail',
-    });
+    const result = await createLinks({ 'my-cli': target }, binDir, 'fail');
 
     assert.equal(result.created.length, 1);
     assert.equal(result.skipped.length, 0);
@@ -54,11 +50,7 @@ test('createLinks skip policy skips existing file conflicts', { skip: isWindows 
     const existingPath = path.join(binDir, 'my-cli');
     fs.writeFileSync(existingPath, 'existing');
 
-    const result = await createLinks({
-      bins: new Map([['my-cli', target]]),
-      binDir,
-      policy: 'skip',
-    });
+    const result = await createLinks({ 'my-cli': target }, binDir, 'skip');
 
     assert.equal(result.created.length, 0);
     assert.equal(result.skipped.length, 1);
@@ -75,11 +67,11 @@ test('createLinks overwrite policy replaces existing file with symlink', { skip:
     const existingPath = path.join(binDir, 'my-cli');
     fs.writeFileSync(existingPath, 'existing');
 
-    const result = await createLinks({
-      bins: new Map([['my-cli', target]]),
+    const result = await createLinks(
+      { 'my-cli': target },
       binDir,
-      policy: 'overwrite',
-    });
+      'overwrite',
+    );
 
     assert.equal(result.created.length, 1);
     assert.equal(fs.lstatSync(existingPath).isSymbolicLink(), true);
@@ -95,58 +87,8 @@ test('createLinks fail policy throws on conflict', { skip: isWindows }, async ()
     fs.writeFileSync(path.join(binDir, 'my-cli'), 'existing');
 
     await assert.rejects(
-      () =>
-        createLinks({
-          bins: new Map([['my-cli', target]]),
-          binDir,
-          policy: 'fail',
-        }),
+      () => createLinks({ 'my-cli': target }, binDir, 'fail'),
       /conflicts/,
-    );
-  });
-});
-
-test('createLinks prompt policy respects collision resolver decision', { skip: isWindows }, async () => {
-  await withTempDir(async (dirPath) => {
-    const binDir = path.join(dirPath, 'bin');
-    fs.mkdirSync(binDir, { recursive: true });
-
-    const target = createTargetFile(dirPath, 'cli.js');
-    fs.writeFileSync(path.join(binDir, 'my-cli'), 'existing');
-
-    let calls = 0;
-    const result = await createLinks({
-      bins: new Map([['my-cli', target]]),
-      binDir,
-      policy: 'prompt',
-      collisionResolver: async () => {
-        calls += 1;
-        return 'overwrite';
-      },
-    });
-
-    assert.equal(calls, 1);
-    assert.equal(result.created.length, 1);
-  });
-});
-
-test('createLinks prompt policy abort decision throws', { skip: isWindows }, async () => {
-  await withTempDir(async (dirPath) => {
-    const binDir = path.join(dirPath, 'bin');
-    fs.mkdirSync(binDir, { recursive: true });
-
-    const target = createTargetFile(dirPath, 'cli.js');
-    fs.writeFileSync(path.join(binDir, 'my-cli'), 'existing');
-
-    await assert.rejects(
-      () =>
-        createLinks({
-          bins: new Map([['my-cli', target]]),
-          binDir,
-          policy: 'prompt',
-          collisionResolver: async () => 'abort',
-        }),
-      /aborted on collision/,
     );
   });
 });
@@ -160,11 +102,11 @@ test('createLinks skips when existing symlink already points to target', { skip:
     const linkPath = path.join(binDir, 'my-cli');
     fs.symlinkSync(target, linkPath);
 
-    const result = await createLinks({
-      bins: new Map([['my-cli', target]]),
+    const result = await createLinks(
+      { 'my-cli': target },
       binDir,
-      policy: 'overwrite',
-    });
+      'overwrite',
+    );
 
     assert.equal(result.created.length, 0);
     assert.equal(result.skipped.length, 1);
@@ -181,12 +123,7 @@ test('createLinks refuses to overwrite directory collisions', { skip: isWindows 
     fs.mkdirSync(path.join(binDir, 'my-cli'));
 
     await assert.rejects(
-      () =>
-        createLinks({
-          bins: new Map([['my-cli', target]]),
-          binDir,
-          policy: 'overwrite',
-        }),
+      () => createLinks({ 'my-cli': target }, binDir, 'overwrite'),
       /cannot overwrite directory/,
     );
   });

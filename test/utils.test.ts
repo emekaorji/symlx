@@ -29,13 +29,13 @@ test('loadConfigFileOptions returns empty object when config file is missing', (
   });
 });
 
-test('loadConfigFileOptions returns parse issue for invalid config JSON', () => {
+test('loadConfigFileOptions throws for invalid config JSON', () => {
   withTempDir((dirPath) => {
     fs.writeFileSync(path.join(dirPath, 'symlx.config.json'), '{"bin":');
-    const result = loadConfigFileOptions(dirPath);
-
-    assert.equal(typeof result.issue, 'string');
-    assert.match(result.issue ?? '', /invalid symlx\.config\.json/);
+    assert.throws(
+      () => loadConfigFileOptions(dirPath),
+      /invalid symlx\.config\.json/,
+    );
   });
 });
 

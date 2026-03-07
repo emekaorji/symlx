@@ -12,4 +12,5 @@ Each command document must include:
 
 Current commands:
 
+- [`link`](./link.md)
 - [`serve`](./serve.md)

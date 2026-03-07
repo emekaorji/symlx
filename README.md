@@ -4,6 +4,7 @@ Temporary command linker for local CLI development.
 
 `symlx serve` links command names from your project into a runnable bin directory for the lifetime of the process.
 When `symlx` stops, those links are cleaned up.
+`symlx link` creates the same links once and exits immediately.
 
 ## Why symlx
 
@@ -42,7 +43,7 @@ In a CLI project with:
 run:
 
 ```bash
-symlx serve
+symlx link
 ```
 
 Then use your CLI normally:
@@ -51,7 +52,7 @@ Then use your CLI normally:
 my-cli --help
 ```
 
-Stop `symlx` with `Ctrl+C` to clean links.
+Use `symlx serve` when you want temporary session-scoped links with auto-cleanup on exit.
 
 ## Alias
 
@@ -61,7 +62,9 @@ Equivalent commands:
 
 ```bash
 symlx serve
+symlx link
 cx serve
+cx link
 ```
 
 ## Command Reference
@@ -86,6 +89,20 @@ Examples:
 symlx serve --collision overwrite
 symlx serve --bin admin=dist/admin.js --bin worker=dist/worker.js
 symlx serve --bin-resolution-strategy merge
+```
+
+## `symlx link`
+
+Links commands from resolved bin mappings and exits immediately.
+
+It uses the exact same options and resolution behavior as `symlx serve`, but it does not keep a live session.
+
+Examples:
+
+```bash
+symlx link
+symlx link --collision overwrite
+symlx link --bin admin=dist/admin.js
 ```
 
 ## Bin Resolution Model

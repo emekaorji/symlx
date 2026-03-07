@@ -150,3 +150,30 @@ export async function createLinks(
 
   return { created, skipped };
 }
+
+export function assertLinksCreated(linkResult: LinkCreationResult): void {
+  if (linkResult.created.length > 0) {
+    return;
+  }
+
+  if (linkResult.skipped.length === 0) {
+    throw new Error('no links were created');
+  }
+
+  const details = linkResult.skipped
+    .slice(0, 5)
+    .map((skip) => `- ${skip.name}: ${skip.reason}`)
+    .join('\n');
+
+  const remainingCount = linkResult.skipped.length - 5;
+  const remaining =
+    remainingCount > 0 ? `\n- ...and ${remainingCount} more` : '';
+
+  throw new Error(
+    [
+      'no links were created because all candidate commands were skipped.',
+      details,
+      `${remaining}\nuse --collision overwrite or --collision fail for stricter behavior.`,
+    ].join('\n'),
+  );
+}

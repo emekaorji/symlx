@@ -97,7 +97,7 @@ symlx serve --bin-resolution-strategy merge
 
 Links commands from resolved bin mappings and exits immediately.
 
-It uses the exact same options and resolution behavior as `symlx serve`, but it does not keep a live session.
+It uses the exact same options and resolution behavior as `symlx serve`, _but it does not keep a live session_.
 
 Examples:
 

@@ -1,4 +1,4 @@
-## Quick Start
+# Quick Start
 
 In a CLI project with:
 

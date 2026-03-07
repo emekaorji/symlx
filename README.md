@@ -1,3 +1,32 @@
+## Quick Start
+
+In a CLI project with:
+
+```json
+{
+  "name": "awesome-cli",
+  "bin": {
+    "awesome-cli": "./dist/cli.js"
+  }
+}
+```
+
+run:
+
+```bash
+symlx link
+```
+
+Then use your CLI normally:
+
+```bash
+awesome-cli --help
+```
+
+Use `symlx serve` when you want temporary session-scoped links with auto-cleanup on exit.
+
+---
+
 # symlx
 
 Temporary command linker for local CLI development.
@@ -26,33 +55,6 @@ npx symlx serve
 # or
 npm i -g symlx
 ```
-
-## Quick Start
-
-In a CLI project with:
-
-```json
-{
-  "name": "my-cli",
-  "bin": {
-    "my-cli": "./dist/cli.js"
-  }
-}
-```
-
-run:
-
-```bash
-symlx link
-```
-
-Then use your CLI normally:
-
-```bash
-my-cli --help
-```
-
-Use `symlx serve` when you want temporary session-scoped links with auto-cleanup on exit.
 
 ## Alias
 

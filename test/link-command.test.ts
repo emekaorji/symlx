@@ -14,10 +14,10 @@ function withTempDir(run: (dirPath: string) => void): void {
   }
 }
 
-function writeExecutable(filePath: string): void {
+function writeCliTarget(filePath: string, mode: number): void {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, '#!/usr/bin/env node\nconsole.log("ok")\n');
-  fs.chmodSync(filePath, 0o755);
+  fs.chmodSync(filePath, mode);
 }
 
 function writeJSON(filePath: string, value: unknown): void {
@@ -71,7 +71,7 @@ test(
         },
       });
 
-      writeExecutable(path.join(projectDirectory, 'dist', 'cli.js'));
+      writeCliTarget(path.join(projectDirectory, 'dist', 'cli.js'), 0o755);
 
       const result = runCli(
         ['link', '--collision', 'overwrite'],
@@ -93,6 +93,45 @@ test(
         const entries = fs.readdirSync(sessionDirectory);
         assert.equal(entries.length, 0);
       }
+    });
+  },
+);
+
+test(
+  'link makes non-executable bin targets executable before linking',
+  { skip: isWindows },
+  () => {
+    withTempDir((dirPath) => {
+      const homeDirectory = path.join(dirPath, 'home');
+      const projectDirectory = path.join(dirPath, 'project');
+      const targetPath = path.join(projectDirectory, 'dist', 'cli.js');
+      fs.mkdirSync(homeDirectory, { recursive: true });
+      fs.mkdirSync(projectDirectory, { recursive: true });
+
+      writeJSON(path.join(projectDirectory, 'package.json'), {
+        name: 'sample-cli-project',
+        bin: {
+          'sample-cli': './dist/cli.js',
+        },
+      });
+
+      writeCliTarget(targetPath, 0o644);
+
+      const result = runCli(
+        ['link', '--collision', 'overwrite'],
+        projectDirectory,
+        homeDirectory,
+      );
+
+      assert.equal(
+        result.status,
+        0,
+        `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
+      );
+
+      fs.accessSync(targetPath, fs.constants.X_OK);
+      const linkPath = path.join(homeDirectory, '.symlx', 'bin', 'sample-cli');
+      assert.equal(fs.lstatSync(linkPath).isSymbolicLink(), true);
     });
   },
 );

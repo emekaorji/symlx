@@ -20,6 +20,27 @@ function isExecutable(filePath: string): boolean {
   }
 }
 
+function ensureExecutable(filePath: string, currentMode: number): string | undefined {
+  if (process.platform === 'win32' || isExecutable(filePath)) {
+    return undefined;
+  }
+
+  const executeBits = (currentMode & 0o444) >> 2;
+  const nextMode = (currentMode | executeBits) & 0o777;
+
+  try {
+    fs.chmodSync(filePath, nextMode);
+  } catch (error) {
+    return `target permissions could not be updated (${String(error)})`;
+  }
+
+  if (isExecutable(filePath)) {
+    return undefined;
+  }
+
+  return 'target permissions could not be updated';
+}
+
 function inspectBinTarget(name: string, target: string): BinTargetIssue | undefined {
   if (!fs.existsSync(target)) {
     return {
@@ -48,11 +69,12 @@ function inspectBinTarget(name: string, target: string): BinTargetIssue | undefi
     };
   }
 
-  if (!isExecutable(target)) {
+  const executableIssue = ensureExecutable(target, stats.mode);
+  if (executableIssue) {
     return {
       name,
       target,
-      reason: 'target is not executable',
+      reason: executableIssue,
       hint: `run: chmod +x ${target}`,
     };
   }
@@ -69,7 +91,7 @@ function formatIssues(issues: BinTargetIssue[]): string {
     .join('\n');
 }
 
-export function assertValidBinTargets(bin: Record<string, string>): void {
+export function prepareBinTargets(bin: Record<string, string>): void {
   const issues: BinTargetIssue[] = [];
 
   for (const [name, target] of Object.entries(bin)) {
@@ -87,7 +109,7 @@ export function assertValidBinTargets(bin: Record<string, string>): void {
     [
       'invalid bin targets:',
       formatIssues(issues),
-      'fix bin paths/permissions in package.json, symlx.config.json, or inline --bin and run again.',
+      'fix bin paths or file permissions in package.json, symlx.config.json, or inline --bin and run again.',
     ].join('\n'),
   );
 }

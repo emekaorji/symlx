@@ -113,7 +113,7 @@ Expected failure:
 
 ### Invalid Bin Target
 
-If a resolved bin target is missing, not executable, or is a directory:
+If a resolved bin target is missing, cannot be made executable, or is a directory:
 
 - process exits `1`
 - error tells the exact command and target issue
@@ -122,4 +122,4 @@ Recovery:
 
 1. build the target (`dist/...`)
 2. ensure the target file exists
-3. ensure executable permission where required (`chmod +x`)
+3. if permission repair fails, set executable permission manually (`chmod +x`)

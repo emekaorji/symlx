@@ -220,13 +220,13 @@ symlx serve --bin-dir ~/.symlx/bin
 
 ## Runtime Safety Checks
 
-Before linking, symlx validates each resolved bin target:
+Before linking, symlx prepares each resolved bin target:
 
 - file exists
 - target is not a directory
-- target is executable on unix-like systems
+- target is made executable automatically on unix-like systems when possible
 
-Invalid targets fail early with actionable messages.
+Missing targets, directories, and permission-update failures still fail early with actionable messages.
 
 ## Exit Behavior
 
@@ -243,12 +243,6 @@ Add a bin mapping in at least one place:
 - `package.json -> bin`
 - `symlx.config.json -> bin`
 - `--bin name=path`
-
-## "target is not executable"
-
-```bash
-chmod +x dist/cli.js # or your target executable
-```
 
 ## "command conflicts at ..."
 

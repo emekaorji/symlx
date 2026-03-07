@@ -6,7 +6,7 @@ import * as log from '../ui/logger';
 import { printLinkOutcome, printPathHintIfNeeded } from '../ui/serve-output';
 import { resolveInternalCollisionOption, resolveOptions } from '../lib/options';
 import { serveInlineOptionsSchema } from '../lib/schema';
-import { assertValidBinTargets } from '../lib/bin-targets';
+import { prepareBinTargets } from '../lib/bin-targets';
 import { createLinks, assertLinksCreated } from '../lib/link-manager';
 import {
   registerLifecycleSessionCleanup,
@@ -39,7 +39,7 @@ export async function serveCommand(inlineOptions: unknown): Promise<void> {
   // prepare
   cleanupStaleSessions(sessionDir);
   ensureSymlxDirectories(options.binDir, sessionDir);
-  assertValidBinTargets(options.bin);
+  prepareBinTargets(options.bin);
 
   // link creation
   const linkResult = await createLinks(

@@ -14,7 +14,7 @@ cx serve [options]
 
 1. Resolve options from defaults, package.json, config, and inline flags.
 2. Resolve final `bin` map with `replace` or `merge` strategy.
-3. Validate all resolved bin targets.
+3. Prepare all resolved bin targets and make them executable when needed.
 4. Cleanup stale sessions.
 5. Create links with collision policy.
 6. Persist session metadata.
@@ -291,7 +291,7 @@ Outcome:
 
 Outcome:
 
-- early runtime validation error with chmod hint
+- symlx makes the target executable before linking
 
 ## 22) Invalid config for non-critical keys
 
@@ -351,7 +351,7 @@ Outcome:
 
 - confirm file exists
 - confirm path is relative in config/inline
-- confirm executable permission (`chmod +x`)
+- if symlx still fails, fix the file permission manually (`chmod +x`)
 
 ## "no links were created because all candidate commands were skipped"
 

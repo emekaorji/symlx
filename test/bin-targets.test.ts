@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 
-import { assertValidBinTargets } from '../src/lib/bin-targets';
+import { prepareBinTargets } from '../src/lib/bin-targets';
 
 function withTempDir(run: (dirPath: string) => void): void {
   const dirPath = fs.mkdtempSync(path.join(os.tmpdir(), 'symlx-target-test-'));
@@ -19,7 +19,7 @@ test('rejects missing target files', () => {
   withTempDir((dirPath) => {
     const missingTarget = path.join(dirPath, 'dist', 'cli.js');
     assert.throws(
-      () => assertValidBinTargets({ 'my-cli': missingTarget }),
+      () => prepareBinTargets({ 'my-cli': missingTarget }),
       /target file does not exist/,
     );
   });
@@ -31,7 +31,7 @@ test('rejects directory targets', () => {
     fs.mkdirSync(targetDirectory, { recursive: true });
 
     assert.throws(
-      () => assertValidBinTargets({ 'my-cli': targetDirectory }),
+      () => prepareBinTargets({ 'my-cli': targetDirectory }),
       /target is a directory/,
     );
   });
@@ -44,12 +44,12 @@ test('accepts executable files', () => {
     fs.chmodSync(filePath, 0o755);
 
     assert.doesNotThrow(() => {
-      assertValidBinTargets({ 'my-cli': filePath });
+      prepareBinTargets({ 'my-cli': filePath });
     });
   });
 });
 
-test('rejects non-executable files on unix-like systems', () => {
+test('makes non-executable files executable on unix-like systems', () => {
   if (process.platform === 'win32') {
     return;
   }
@@ -59,9 +59,10 @@ test('rejects non-executable files on unix-like systems', () => {
     fs.writeFileSync(filePath, '#!/usr/bin/env sh\necho ok\n');
     fs.chmodSync(filePath, 0o644);
 
-    assert.throws(
-      () => assertValidBinTargets({ 'my-cli': filePath }),
-      /target is not executable/,
-    );
+    assert.doesNotThrow(() => {
+      prepareBinTargets({ 'my-cli': filePath });
+    });
+
+    fs.accessSync(filePath, fs.constants.X_OK);
   });
 });

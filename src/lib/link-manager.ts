@@ -5,8 +5,11 @@ import type {
   CollisionDecision,
   LinkConflict,
   LinkCreationResult,
+  LinkRecord,
+  PreparedBinTarget,
 } from './types';
 import { CollisionOption } from './schema';
+import { matchesTsxLauncher, writeTsxLauncher } from './tsx-runtime';
 import { promptCollisionResolver } from '../ui/prompts';
 
 type ExistingNode = {
@@ -57,6 +60,46 @@ function removeExistingNode(linkPath: string, node: ExistingNode): void {
   fs.unlinkSync(linkPath);
 }
 
+function matchesPreparedTarget(
+  linkPath: string,
+  entry: PreparedBinTarget,
+  existingNode: ExistingNode,
+): boolean {
+  if (entry.kind === 'symlink') {
+    return Boolean(
+      existingNode.existingTarget &&
+        path.resolve(existingNode.existingTarget) === path.resolve(entry.target),
+    );
+  }
+
+  if (existingNode.stats.isSymbolicLink() || !existingNode.stats.isFile()) {
+    return false;
+  }
+
+  return matchesTsxLauncher(linkPath, entry.runtimeCommand, entry.target);
+}
+
+function createCommandEntry(linkPath: string, entry: PreparedBinTarget): LinkRecord {
+  if (entry.kind === 'symlink') {
+    fs.symlinkSync(entry.target, linkPath);
+    return {
+      name: entry.name,
+      linkPath,
+      target: entry.target,
+      kind: 'symlink',
+    };
+  }
+
+  writeTsxLauncher(linkPath, entry.runtimeCommand, entry.target);
+  return {
+    name: entry.name,
+    linkPath,
+    target: entry.target,
+    kind: 'tsx-launcher',
+    runtimeCommand: entry.runtimeCommand,
+  };
+}
+
 // Normalizes filesystem state into a user-facing collision descriptor.
 function toConflict(
   name: string,
@@ -86,33 +129,26 @@ function toConflict(
   };
 }
 
-// Creates symlinks for all project bins according to the selected collision strategy.
+// Creates command entries for all prepared bins according to the selected collision strategy.
 // This function is pure with regard to policy: caller decides interactive vs non-interactive.
 export async function createLinks(
-  bins: Record<string, string>,
+  preparedTargets: PreparedBinTarget[],
   binDir: string,
   collisionOption: CollisionOption,
 ): Promise<LinkCreationResult> {
   const created = [];
   const skipped = [];
 
-  // Link every executable in the bin options
-  for (const [name, target] of Object.entries(bins)) {
-    const linkPath = path.join(binDir, name);
-    // check is there's an existing binary on the device
+  for (const entry of preparedTargets) {
+    const linkPath = path.join(binDir, entry.name);
     const existingNode = inspectExistingNode(linkPath);
 
-    // If there's a conflicting binary, handle the conflict
     if (existingNode) {
-      const conflict = toConflict(name, linkPath, target, existingNode);
+      const conflict = toConflict(entry.name, linkPath, entry.target, existingNode);
 
-      // Reusing the exact same link is always a no-op.
-      if (
-        conflict.existingTarget &&
-        path.resolve(conflict.existingTarget) === path.resolve(target)
-      ) {
+      if (matchesPreparedTarget(linkPath, entry, existingNode)) {
         skipped.push({
-          name,
+          name: entry.name,
           linkPath,
           reason: 'already linked to requested target',
         });
@@ -121,7 +157,7 @@ export async function createLinks(
 
       if (collisionOption === 'fail') {
         throw new Error(
-          `command "${name}" conflicts at ${linkPath}: ${conflict.reason}`,
+          `command "${entry.name}" conflicts at ${linkPath}: ${conflict.reason}`,
         );
       }
 
@@ -129,23 +165,21 @@ export async function createLinks(
       if (collisionOption === 'prompt') {
         collisionDecision = await promptCollisionResolver(conflict);
         if (collisionDecision === 'abort') {
-          throw new Error(`aborted on collision for command "${name}"`);
+          throw new Error(`aborted on collision for command "${entry.name}"`);
         }
       } else {
-        // After here, resulting decision can only either be 'skip' or 'overwrite'
         collisionDecision = collisionOption;
       }
 
       if (collisionDecision === 'skip') {
-        skipped.push({ name, linkPath, reason: conflict.reason });
+        skipped.push({ name: entry.name, linkPath, reason: conflict.reason });
         continue;
       }
 
       removeExistingNode(linkPath, existingNode);
     }
 
-    fs.symlinkSync(target, linkPath);
-    created.push({ name, linkPath, target });
+    created.push(createCommandEntry(linkPath, entry));
   }
 
   return { created, skipped };

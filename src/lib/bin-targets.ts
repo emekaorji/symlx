@@ -1,5 +1,8 @@
 import fs from 'node:fs';
 
+import type { PreparedBinTarget } from './types';
+import { isTypeScriptTarget, resolveTsxRuntime } from './tsx-runtime';
+
 type BinTargetIssue = {
   name: string;
   target: string;
@@ -20,7 +23,10 @@ function isExecutable(filePath: string): boolean {
   }
 }
 
-function ensureExecutable(filePath: string, currentMode: number): string | undefined {
+function ensureExecutable(
+  filePath: string,
+  currentMode: number,
+): string | undefined {
   if (process.platform === 'win32' || isExecutable(filePath)) {
     return undefined;
   }
@@ -41,47 +47,6 @@ function ensureExecutable(filePath: string, currentMode: number): string | undef
   return 'target permissions could not be updated';
 }
 
-function inspectBinTarget(name: string, target: string): BinTargetIssue | undefined {
-  if (!fs.existsSync(target)) {
-    return {
-      name,
-      target,
-      reason: 'target file does not exist',
-    };
-  }
-
-  let stats: fs.Stats;
-  try {
-    stats = fs.statSync(target);
-  } catch (error) {
-    return {
-      name,
-      target,
-      reason: `target cannot be accessed (${String(error)})`,
-    };
-  }
-
-  if (stats.isDirectory()) {
-    return {
-      name,
-      target,
-      reason: 'target is a directory',
-    };
-  }
-
-  const executableIssue = ensureExecutable(target, stats.mode);
-  if (executableIssue) {
-    return {
-      name,
-      target,
-      reason: executableIssue,
-      hint: `run: chmod +x ${target}`,
-    };
-  }
-
-  return undefined;
-}
-
 function formatIssues(issues: BinTargetIssue[]): string {
   return issues
     .map((issue) => {
@@ -91,25 +56,97 @@ function formatIssues(issues: BinTargetIssue[]): string {
     .join('\n');
 }
 
-export function prepareBinTargets(bin: Record<string, string>): void {
+export function prepareBinTargets(
+  cwd: string,
+  bin: Record<string, string>,
+  currentPath: string | undefined = process.env.PATH,
+): PreparedBinTarget[] {
+  const preparedTargets: PreparedBinTarget[] = [];
   const issues: BinTargetIssue[] = [];
+  let resolvedTsxRuntime: string | null | undefined;
 
   for (const [name, target] of Object.entries(bin)) {
-    const issue = inspectBinTarget(name, target);
-    if (issue) {
-      issues.push(issue);
+    if (!fs.existsSync(target)) {
+      issues.push({
+        name,
+        target,
+        reason: 'target file does not exist',
+      });
+      continue;
     }
+
+    let stats: fs.Stats;
+    try {
+      stats = fs.statSync(target);
+    } catch (error) {
+      issues.push({
+        name,
+        target,
+        reason: `target cannot be accessed (${String(error)})`,
+      });
+      continue;
+    }
+
+    if (stats.isDirectory()) {
+      issues.push({
+        name,
+        target,
+        reason: 'target is a directory',
+      });
+      continue;
+    }
+
+    if (isTypeScriptTarget(target)) {
+      if (resolvedTsxRuntime === undefined) {
+        resolvedTsxRuntime = resolveTsxRuntime(cwd, currentPath) ?? null;
+      }
+
+      if (!resolvedTsxRuntime) {
+        issues.push({
+          name,
+          target,
+          reason: 'tsx runtime could not be resolved for TypeScript target',
+          hint: 'install tsx in the project or make tsx available on PATH',
+        });
+        continue;
+      }
+
+      preparedTargets.push({
+        name,
+        target,
+        kind: 'tsx-launcher',
+        runtimeCommand: resolvedTsxRuntime,
+      });
+      continue;
+    }
+
+    const executableIssue = ensureExecutable(target, stats.mode);
+    if (executableIssue) {
+      issues.push({
+        name,
+        target,
+        reason: executableIssue,
+        hint: `run: chmod +x ${target}`,
+      });
+      continue;
+    }
+
+    preparedTargets.push({
+      name,
+      target,
+      kind: 'symlink',
+    });
   }
 
   if (issues.length === 0) {
-    return;
+    return preparedTargets;
   }
 
   throw new Error(
     [
       'invalid bin targets:',
       formatIssues(issues),
-      'fix bin paths or file permissions in package.json, symlx.config.json, or inline --bin and run again.',
+      'fix bin paths, runtime setup, or file permissions in package.json, symlx.config.json, or inline --bin and run again.',
     ].join('\n'),
   );
 }

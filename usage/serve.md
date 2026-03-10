@@ -14,7 +14,7 @@ cx serve [options]
 
 1. Resolve options from defaults, package.json, config, and inline flags.
 2. Resolve final `bin` map with `replace` or `merge` strategy.
-3. Prepare all resolved bin targets and make them executable when needed.
+3. Prepare all resolved bin targets, make them executable when needed, and convert TypeScript targets into `tsx` launchers.
 4. Cleanup stale sessions.
 5. Create links with collision policy.
 6. Persist session metadata.
@@ -107,7 +107,32 @@ Outcome:
 - bins are merged from package + config + inline
 - in this case, both `cfg-tool --help` and `inline-tool --help` works
 
-## 5) Custom bin directory
+## 5) TypeScript bin target
+
+`package.json`:
+
+```json
+{
+  "name": "my-cli",
+  "bin": {
+    "my-cli": "./src/cli.ts"
+  }
+}
+```
+
+Run:
+
+```bash
+symlx serve
+```
+
+Outcome:
+
+- symlx creates a command launcher in the bin dir
+- the launcher runs the real target through `tsx`
+- `tsx` is resolved from local `node_modules/.bin/tsx` first, then `PATH`
+
+## 6) Custom bin directory
 
 Run:
 
@@ -121,7 +146,7 @@ Outcome:
 
 ## Collision Scenarios
 
-## 6) Prompt mode
+## 7) Prompt mode
 
 Run:
 
@@ -133,7 +158,7 @@ Outcome:
 
 - interactive choice per conflict: overwrite / skip / abort
 
-## 7) Skip mode
+## 8) Skip mode
 
 Run:
 
@@ -146,7 +171,7 @@ Outcome:
 - conflicting names are skipped
 - non-conflicting names still link
 
-## 8) Fail mode
+## 9) Fail mode
 
 Run:
 
@@ -158,7 +183,7 @@ Outcome:
 
 - first collision throws and stops linking
 
-## 9) Overwrite mode
+## 10) Overwrite mode
 
 Run:
 
@@ -170,7 +195,7 @@ Outcome:
 
 - conflicting entries are replaced
 
-## 10) Prompt requested in non-interactive mode
+## 11) Prompt requested in non-interactive mode
 
 Run:
 
@@ -185,7 +210,7 @@ Outcome:
 
 ## Resolution Scenarios
 
-## 11) Replace strategy (default)
+## 12) Replace strategy (default)
 
 Run:
 
@@ -201,7 +226,7 @@ Outcome:
   - package
 - i.e. if bin is specified inline, bin from the config or package.json is ignored
 
-## 12) Merge strategy from CLI
+## 13) Merge strategy from CLI
 
 Run:
 
@@ -215,7 +240,7 @@ Outcome:
 
 ## Validation and Edge Cases
 
-## 13) Missing `package.json`
+## 14) Missing `package.json`
 
 Run in directory without `package.json` and without any config/inline bins.
 
@@ -223,19 +248,19 @@ Outcome:
 
 - explicit error: "package.json not found"
 
-## 14) Invalid `package.json` JSON
+## 15) Invalid `package.json` JSON
 
 Outcome:
 
 - explicit parse error with file path
 
-## 15) No bin entries anywhere
+## 16) No bin entries anywhere
 
 Outcome:
 
 - error with exact locations where bin can be defined
 
-## 16) Bin string without package name
+## 17) Bin string without package name
 
 `package.json`:
 
@@ -249,7 +274,7 @@ Outcome:
 
 - error: cannot infer command name, set valid package name
 
-## 17) Invalid inline bin name
+## 18) Invalid inline bin name
 
 Run:
 
@@ -261,7 +286,7 @@ Outcome:
 
 - schema error (name format invalid)
 
-## 18) Invalid inline bin path (absolute)
+## 19) Invalid inline bin path (absolute)
 
 Run:
 
@@ -273,7 +298,7 @@ Outcome:
 
 - schema error (absolute target not allowed)
 
-## 19) Missing target file
+## 20) Missing target file
 
 Any resolved bin pointing to missing file.
 
@@ -281,19 +306,25 @@ Outcome:
 
 - early runtime validation error before link creation
 
-## 20) Target is a directory
+## 21) Target is a directory
 
 Outcome:
 
 - early runtime validation error
 
-## 21) Target is not executable (unix-like)
+## 22) Target is not executable (unix-like)
 
 Outcome:
 
-- symlx makes the target executable before linking
+- for JavaScript targets, symlx makes the target executable before linking
 
-## 22) Invalid config for non-critical keys
+## 23) TypeScript target without tsx
+
+Outcome:
+
+- early runtime validation error telling you to install `tsx` locally or make it available on `PATH`
+
+## 24) Invalid config for non-critical keys
 
 `symlx.config.json`:
 
@@ -309,7 +340,7 @@ Outcome:
 - warning logs
 - defaults applied
 
-## 23) Invalid config for critical key (`binDir`)
+## 25) Invalid config for critical key (`binDir`)
 
 Outcome:
 
@@ -317,7 +348,7 @@ Outcome:
 
 ## Lifecycle Scenarios
 
-## 24) Controlled exit
+## 26) Controlled exit
 
 Stop with `Ctrl+C`.
 
@@ -326,7 +357,7 @@ Outcome:
 - active session links removed
 - session metadata file removed
 
-## 25) Stale crash recovery
+## 27) Stale crash recovery
 
 Previous run crashed and left stale session metadata.
 
@@ -351,11 +382,11 @@ Outcome:
 
 - confirm file exists
 - confirm path is relative in config/inline
-- if symlx still fails, fix the file permission manually (`chmod +x`)
+- if the target is TypeScript, install `tsx` locally or make it available on `PATH`
+- if symlx still fails for JavaScript, fix the file permission manually (`chmod +x`)
 
 ## "no links were created because all candidate commands were skipped"
 
 - switch collision policy to:
   - `--collision overwrite`
   - `--collision fail`
-

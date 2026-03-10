@@ -4,12 +4,34 @@ export type PackageJson = {
   bin?: string | Record<string, string>;
 };
 
-// A symlink created by symlx for a single command name.
-export type LinkRecord = {
-  name: string;
-  linkPath: string;
-  target: string;
-};
+export type PreparedBinTarget =
+  | {
+      name: string;
+      target: string;
+      kind: 'symlink';
+    }
+  | {
+      name: string;
+      target: string;
+      kind: 'tsx-launcher';
+      runtimeCommand: string;
+    };
+
+// A command entry created by symlx for a single command name.
+export type LinkRecord =
+  | {
+      name: string;
+      linkPath: string;
+      target: string;
+      kind: 'symlink';
+    }
+  | {
+      name: string;
+      linkPath: string;
+      target: string;
+      kind: 'tsx-launcher';
+      runtimeCommand: string;
+    };
 
 // Session metadata persisted to disk so stale links can be recovered/cleaned later.
 export type SessionRecord = {

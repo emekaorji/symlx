@@ -46,6 +46,7 @@ Core guarantees:
 - Links are session-scoped and cleaned on exit.
 - Collision behavior is explicit (`prompt`, `skip`, `fail`, `overwrite`).
 - Option resolution is deterministic.
+- JavaScript targets are linked directly; TypeScript targets are launched through `tsx`.
 - PATH setup for `~/.symlx/bin` is automated on install (with opt-out).
 
 ## Install
@@ -226,9 +227,15 @@ Before linking, symlx prepares each resolved bin target:
 
 - file exists
 - target is not a directory
-- target is made executable automatically on unix-like systems when possible
+- JavaScript targets are made executable automatically on unix-like systems when possible
+- TypeScript targets (`.ts`, `.tsx`, `.mts`, `.cts`) are run through `tsx`
 
-Missing targets, directories, and permission-update failures still fail early with actionable messages.
+TypeScript runtime resolution order is:
+
+1. project-local `node_modules/.bin/tsx`
+2. `tsx` on `PATH`
+
+Missing targets, directories, permission-update failures, and missing `tsx` runtime still fail early with actionable messages.
 
 ## Exit Behavior
 
@@ -255,6 +262,10 @@ symlx serve --collision overwrite
 # or
 symlx serve --collision fail
 ```
+
+## "tsx runtime could not be resolved for TypeScript target"
+
+Install `tsx` in the project or make `tsx` available on `PATH`.
 
 ## "package.json not found"
 

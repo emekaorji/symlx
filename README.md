@@ -46,7 +46,9 @@ Core guarantees:
 - Links are session-scoped and cleaned on exit.
 - Collision behavior is explicit (`prompt`, `skip`, `fail`, `overwrite`).
 - Option resolution is deterministic.
-- JavaScript targets are linked directly; TypeScript targets are launched through `tsx`.
+- Target execution is hybrid by default:
+  - shebang present -> direct link
+  - no shebang -> launcher inference by target type
 - PATH setup for `~/.symlx/bin` is automated on install (with opt-out).
 
 ## Install
@@ -122,7 +124,7 @@ Scalar fields (`collision`, `binDir`, `nonInteractive`, `binResolutionStrategy`)
 
 `bin` uses strategy mode:
 
-- `replace` (default): first non-empty wins by priority`inline > config > package.json > default`
+- `replace` (default): first non-empty wins by priority `inline > config > package.json > default`
 - `merge`: combines all
   `package.json + config + inline` (right-most source overrides key collisions)
 
@@ -166,7 +168,7 @@ If `bin` is a string, `name` is required so command name can be inferred.
 
 Notes:
 
-- In case of invalid config values, `symlx` fallback to defaults (with warnings).
+- In case of invalid non-critical config values, `symlx` falls back to defaults (with warnings).
 - `binDir` is treated as critical and must pass validation.
 
 ## Inline Flags
@@ -190,6 +192,25 @@ symlx serve \
 - must be relative (for example `dist/cli.js` or `./dist/cli.js`)
 - absolute paths are rejected
 
+## Target Execution Model (Hybrid by Default)
+
+For each resolved target file:
+
+- if target has a shebang, symlx links it directly
+- if target has no shebang, symlx infers launcher by file type
+
+Current launcher inference:
+
+- `.js`, `.mjs`, `.cjs` -> Node launcher
+- `.ts`, `.tsx`, `.mts`, `.cts` -> `tsx` launcher
+
+TypeScript runtime resolution order is:
+
+1. project-local `node_modules/.bin/tsx`
+2. `tsx` on `PATH`
+
+If target has no shebang and launcher support is unavailable, symlx fails with a clear message that this is not supported yet without shebang and asks you to manually add shebang.
+
 ## Collision Policies
 
 - `prompt`: ask per conflict (interactive TTY only)
@@ -201,7 +222,7 @@ If `prompt` is requested in non-interactive mode, symlx falls back to `skip` and
 
 ## Install-Time PATH Setup
 
-On install, `symlx` updates shell profile PATH block
+On install, `symlx` updates shell profile PATH block.
 
 Managed path:
 
@@ -215,7 +236,7 @@ Opt out:
 SYMLX_SKIP_PATH_SETUP=1 npm i -g symlx
 ```
 
-To set a custome bin PATH:
+To set a custom bin directory:
 
 ```bash
 symlx serve --bin-dir ~/.symlx/bin
@@ -227,15 +248,10 @@ Before linking, symlx prepares each resolved bin target:
 
 - file exists
 - target is not a directory
-- JavaScript targets are made executable automatically on unix-like systems when possible
-- TypeScript targets (`.ts`, `.tsx`, `.mts`, `.cts`) are run through `tsx`
+- shebang path: direct link + executable permission repair when possible
+- no-shebang path: launcher inference + runtime availability checks
 
-TypeScript runtime resolution order is:
-
-1. project-local `node_modules/.bin/tsx`
-2. `tsx` on `PATH`
-
-Missing targets, directories, permission-update failures, and missing `tsx` runtime still fail early with actionable messages.
+Missing targets, directories, unsupported no-shebang target types, missing launcher runtimes, and permission-update failures fail early with actionable messages.
 
 ## Exit Behavior
 
@@ -244,6 +260,10 @@ Missing targets, directories, permission-update failures, and missing `tsx` runt
 - Stale sessions leftover due to hard crashes are cleaned on startup.
 
 ## Troubleshooting
+
+## "not supported yet without shebang"
+
+- add a shebang to the target file to declare its runner explicitly
 
 ## "no bin entries found"
 
@@ -263,7 +283,7 @@ symlx serve --collision overwrite
 symlx serve --collision fail
 ```
 
-## "tsx runtime could not be resolved for TypeScript target"
+## "tsx runtime could not be resolved for target"
 
 Install `tsx` in the project or make `tsx` available on `PATH`.
 

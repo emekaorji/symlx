@@ -4,12 +4,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 
+import { matchesLauncher, writeLauncher } from '../src/lib/launchers';
 import { createLinks } from '../src/lib/link-manager';
-import {
-  matchesTsxLauncher,
-  writeTsxLauncher,
-} from '../src/lib/tsx-runtime';
-
 import type { PreparedBinTarget } from '../src/lib/types';
 
 function withTempDir(run: (dirPath: string) => Promise<void> | void): Promise<void> {
@@ -29,14 +25,14 @@ function createTargetFile(dirPath: string, basename: string): string {
 
 const isWindows = process.platform === 'win32';
 
-test('createLinks creates symlinks for prepared JavaScript targets', { skip: isWindows }, async () => {
+test('createLinks creates symlinks for direct-link targets', { skip: isWindows }, async () => {
   await withTempDir(async (dirPath) => {
     const binDir = path.join(dirPath, 'bin');
     fs.mkdirSync(binDir, { recursive: true });
 
     const target = createTargetFile(dirPath, 'cli.js');
     const preparedTargets: PreparedBinTarget[] = [
-      { name: 'my-cli', target, kind: 'symlink' },
+      { name: 'my-cli', target, kind: 'direct-link' },
     ];
 
     const result = await createLinks(preparedTargets, binDir, 'fail');
@@ -53,7 +49,7 @@ test('createLinks creates symlinks for prepared JavaScript targets', { skip: isW
   });
 });
 
-test('createLinks creates tsx launchers for prepared TypeScript targets', { skip: isWindows }, async () => {
+test('createLinks creates launchers for inferred runtime targets', { skip: isWindows }, async () => {
   await withTempDir(async (dirPath) => {
     const binDir = path.join(dirPath, 'bin');
     fs.mkdirSync(binDir, { recursive: true });
@@ -66,7 +62,8 @@ test('createLinks creates tsx launchers for prepared TypeScript targets', { skip
       {
         name: 'my-cli',
         target,
-        kind: 'tsx-launcher',
+        kind: 'launcher',
+        launcherKind: 'tsx',
         runtimeCommand,
       },
     ];
@@ -77,7 +74,7 @@ test('createLinks creates tsx launchers for prepared TypeScript targets', { skip
     const linkPath = path.join(binDir, 'my-cli');
     assert.equal(fs.lstatSync(linkPath).isFile(), true);
     assert.equal(fs.lstatSync(linkPath).isSymbolicLink(), false);
-    assert.equal(matchesTsxLauncher(linkPath, runtimeCommand, target), true);
+    assert.equal(matchesLauncher(linkPath, 'tsx', runtimeCommand, target), true);
     fs.accessSync(linkPath, fs.constants.X_OK);
   });
 });
@@ -92,7 +89,7 @@ test('createLinks skip policy skips existing file conflicts', { skip: isWindows 
     fs.writeFileSync(existingPath, 'existing');
 
     const result = await createLinks(
-      [{ name: 'my-cli', target, kind: 'symlink' }],
+      [{ name: 'my-cli', target, kind: 'direct-link' }],
       binDir,
       'skip',
     );
@@ -103,7 +100,7 @@ test('createLinks skip policy skips existing file conflicts', { skip: isWindows 
   });
 });
 
-test('createLinks overwrite policy replaces existing file with symlink', { skip: isWindows }, async () => {
+test('createLinks overwrite policy replaces existing file with direct link', { skip: isWindows }, async () => {
   await withTempDir(async (dirPath) => {
     const binDir = path.join(dirPath, 'bin');
     fs.mkdirSync(binDir, { recursive: true });
@@ -113,7 +110,7 @@ test('createLinks overwrite policy replaces existing file with symlink', { skip:
     fs.writeFileSync(existingPath, 'existing');
 
     const result = await createLinks(
-      [{ name: 'my-cli', target, kind: 'symlink' }],
+      [{ name: 'my-cli', target, kind: 'direct-link' }],
       binDir,
       'overwrite',
     );
@@ -132,7 +129,7 @@ test('createLinks fail policy throws on conflict', { skip: isWindows }, async ()
     fs.writeFileSync(path.join(binDir, 'my-cli'), 'existing');
 
     await assert.rejects(
-      () => createLinks([{ name: 'my-cli', target, kind: 'symlink' }], binDir, 'fail'),
+      () => createLinks([{ name: 'my-cli', target, kind: 'direct-link' }], binDir, 'fail'),
       /conflicts/,
     );
   });
@@ -148,7 +145,7 @@ test('createLinks skips when existing symlink already points to target', { skip:
     fs.symlinkSync(target, linkPath);
 
     const result = await createLinks(
-      [{ name: 'my-cli', target, kind: 'symlink' }],
+      [{ name: 'my-cli', target, kind: 'direct-link' }],
       binDir,
       'overwrite',
     );
@@ -159,7 +156,7 @@ test('createLinks skips when existing symlink already points to target', { skip:
   });
 });
 
-test('createLinks skips when existing tsx launcher already matches target', { skip: isWindows }, async () => {
+test('createLinks skips when existing launcher already matches target', { skip: isWindows }, async () => {
   await withTempDir(async (dirPath) => {
     const binDir = path.join(dirPath, 'bin');
     fs.mkdirSync(binDir, { recursive: true });
@@ -168,14 +165,15 @@ test('createLinks skips when existing tsx launcher already matches target', { sk
     fs.writeFileSync(target, 'console.log("ok")\n');
     const runtimeCommand = path.join(dirPath, 'tsx');
     const linkPath = path.join(binDir, 'my-cli');
-    writeTsxLauncher(linkPath, runtimeCommand, target);
+    writeLauncher(linkPath, 'tsx', runtimeCommand, target);
 
     const result = await createLinks(
       [
         {
           name: 'my-cli',
           target,
-          kind: 'tsx-launcher',
+          kind: 'launcher',
+          launcherKind: 'tsx',
           runtimeCommand,
         },
       ],
@@ -198,7 +196,7 @@ test('createLinks refuses to overwrite directory collisions', { skip: isWindows 
     fs.mkdirSync(path.join(binDir, 'my-cli'));
 
     await assert.rejects(
-      () => createLinks([{ name: 'my-cli', target, kind: 'symlink' }], binDir, 'overwrite'),
+      () => createLinks([{ name: 'my-cli', target, kind: 'direct-link' }], binDir, 'overwrite'),
       /cannot overwrite directory/,
     );
   });

@@ -14,11 +14,12 @@ cx serve [options]
 
 1. Resolve options from defaults, package.json, config, and inline flags.
 2. Resolve final `bin` map with `replace` or `merge` strategy.
-3. Prepare all resolved bin targets, make them executable when needed, and convert TypeScript targets into `tsx` launchers.
-4. Cleanup stale sessions.
-5. Create links with collision policy.
-6. Persist session metadata.
-7. Keep process alive and cleanup on exit.
+3. Prepare all resolved bin targets.
+4. For each target: use shebang when present, otherwise infer launcher.
+5. Cleanup stale sessions.
+6. Create links with collision policy.
+7. Persist session metadata.
+8. Keep process alive and cleanup on exit.
 
 ## Happy Path Scenarios
 
@@ -33,6 +34,13 @@ cx serve [options]
     "my-cli": "./dist/cli.js"
   }
 }
+```
+
+Target file includes shebang:
+
+```js
+#!/usr/bin/env node
+console.log('foo')
 ```
 
 Run:
@@ -107,7 +115,37 @@ Outcome:
 - bins are merged from package + config + inline
 - in this case, both `cfg-tool --help` and `inline-tool --help` works
 
-## 5) TypeScript bin target
+## 5) TypeScript target with explicit shebang
+
+`package.json`:
+
+```json
+{
+  "name": "my-cli",
+  "bin": {
+    "my-cli": "./src/cli.ts"
+  }
+}
+```
+
+`src/cli.ts` starts with:
+
+```ts
+#!/usr/bin/env tsx
+```
+
+Run:
+
+```bash
+symlx serve
+```
+
+Outcome:
+
+- symlx links target directly
+- command runs via declared shebang runtime
+
+## 6) TypeScript target without shebang
 
 `package.json`:
 
@@ -132,7 +170,20 @@ Outcome:
 - the launcher runs the real target through `tsx`
 - `tsx` is resolved from local `node_modules/.bin/tsx` first, then `PATH`
 
-## 6) Custom bin directory
+## 7) JavaScript target without shebang
+
+Run:
+
+```bash
+symlx serve --bin my-cli=dist/cli.js
+```
+
+Outcome:
+
+- symlx creates a Node launcher
+- launcher runs target via Node directly
+
+## 8) Custom bin directory
 
 Run:
 
@@ -146,7 +197,7 @@ Outcome:
 
 ## Collision Scenarios
 
-## 7) Prompt mode
+## 9) Prompt mode
 
 Run:
 
@@ -158,7 +209,7 @@ Outcome:
 
 - interactive choice per conflict: overwrite / skip / abort
 
-## 8) Skip mode
+## 10) Skip mode
 
 Run:
 
@@ -171,7 +222,7 @@ Outcome:
 - conflicting names are skipped
 - non-conflicting names still link
 
-## 9) Fail mode
+## 11) Fail mode
 
 Run:
 
@@ -183,7 +234,7 @@ Outcome:
 
 - first collision throws and stops linking
 
-## 10) Overwrite mode
+## 12) Overwrite mode
 
 Run:
 
@@ -195,7 +246,7 @@ Outcome:
 
 - conflicting entries are replaced
 
-## 11) Prompt requested in non-interactive mode
+## 13) Prompt requested in non-interactive mode
 
 Run:
 
@@ -210,7 +261,7 @@ Outcome:
 
 ## Resolution Scenarios
 
-## 12) Replace strategy (default)
+## 14) Replace strategy (default)
 
 Run:
 
@@ -226,7 +277,7 @@ Outcome:
   - package
 - i.e. if bin is specified inline, bin from the config or package.json is ignored
 
-## 13) Merge strategy from CLI
+## 15) Merge strategy from CLI
 
 Run:
 
@@ -240,7 +291,7 @@ Outcome:
 
 ## Validation and Edge Cases
 
-## 14) Missing `package.json`
+## 16) Missing `package.json`
 
 Run in directory without `package.json` and without any config/inline bins.
 
@@ -248,19 +299,19 @@ Outcome:
 
 - explicit error: "package.json not found"
 
-## 15) Invalid `package.json` JSON
+## 17) Invalid `package.json` JSON
 
 Outcome:
 
 - explicit parse error with file path
 
-## 16) No bin entries anywhere
+## 18) No bin entries anywhere
 
 Outcome:
 
 - error with exact locations where bin can be defined
 
-## 17) Bin string without package name
+## 19) Bin string without package name
 
 `package.json`:
 
@@ -274,7 +325,7 @@ Outcome:
 
 - error: cannot infer command name, set valid package name
 
-## 18) Invalid inline bin name
+## 20) Invalid inline bin name
 
 Run:
 
@@ -286,7 +337,7 @@ Outcome:
 
 - schema error (name format invalid)
 
-## 19) Invalid inline bin path (absolute)
+## 21) Invalid inline bin path (absolute)
 
 Run:
 
@@ -298,7 +349,7 @@ Outcome:
 
 - schema error (absolute target not allowed)
 
-## 20) Missing target file
+## 22) Missing target file
 
 Any resolved bin pointing to missing file.
 
@@ -306,25 +357,33 @@ Outcome:
 
 - early runtime validation error before link creation
 
-## 21) Target is a directory
+## 23) Target is a directory
 
 Outcome:
 
 - early runtime validation error
 
-## 22) Target is not executable (unix-like)
+## 24) Target has no shebang and no supported launcher
 
 Outcome:
 
-- for JavaScript targets, symlx makes the target executable before linking
+- early runtime validation error
+- message tells user this is not supported yet without shebang and to specify shebang manually
 
-## 23) TypeScript target without tsx
+## 25) Target is not executable (unix-like)
 
 Outcome:
 
-- early runtime validation error telling you to install `tsx` locally or make it available on `PATH`
+- for direct-link targets with shebang, symlx makes the target executable before linking
 
-## 24) Invalid config for non-critical keys
+## 26) TypeScript target without tsx
+
+Outcome:
+
+- early runtime validation error telling you this path is not supported yet without shebang
+- message still guides manual shebang declaration
+
+## 27) Invalid config for non-critical keys
 
 `symlx.config.json`:
 
@@ -340,7 +399,7 @@ Outcome:
 - warning logs
 - defaults applied
 
-## 25) Invalid config for critical key (`binDir`)
+## 28) Invalid config for critical key (`binDir`)
 
 Outcome:
 
@@ -348,7 +407,7 @@ Outcome:
 
 ## Lifecycle Scenarios
 
-## 26) Controlled exit
+## 29) Controlled exit
 
 Stop with `Ctrl+C`.
 
@@ -357,7 +416,7 @@ Outcome:
 - active session links removed
 - session metadata file removed
 
-## 27) Stale crash recovery
+## 30) Stale crash recovery
 
 Previous run crashed and left stale session metadata.
 
@@ -372,6 +431,10 @@ Outcome:
 - run in project root
 - or provide bins via config/inline
 
+## "not supported yet without shebang"
+
+- add shebang to target file to declare runner explicitly
+
 ## "no bin entries found"
 
 - add `bin` in package.json
@@ -382,8 +445,9 @@ Outcome:
 
 - confirm file exists
 - confirm path is relative in config/inline
-- if the target is TypeScript, install `tsx` locally or make it available on `PATH`
-- if symlx still fails for JavaScript, fix the file permission manually (`chmod +x`)
+- if target has no shebang, ensure target type launcher is supported and runtime exists
+- if this still fails, add explicit shebang to target file
+- if symlx still fails for direct-link targets, fix file permission manually (`chmod +x`)
 
 ## "no links were created because all candidate commands were skipped"
 

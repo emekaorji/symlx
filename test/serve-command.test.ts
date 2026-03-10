@@ -14,10 +14,19 @@ function withTempDir(run: (dirPath: string) => Promise<void> | void): Promise<vo
   });
 }
 
-function writeTarget(filePath: string): void {
+function writeTarget(
+  filePath: string,
+  {
+    content = 'console.log("ok")\n',
+    mode = 0o644,
+  }: {
+    content?: string;
+    mode?: number;
+  } = {},
+): void {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, 'console.log("ok")\n');
-  fs.chmodSync(filePath, 0o644);
+  fs.writeFileSync(filePath, content);
+  fs.chmodSync(filePath, mode);
 }
 
 function writeTsxStub(projectDirectory: string): string {
@@ -54,7 +63,7 @@ async function waitFor(
 const isWindows = process.platform === 'win32';
 
 test(
-  'serve keeps TypeScript command launchers active and cleans them up on exit',
+  'serve keeps TypeScript command launchers active and cleans them up on exit for shebang-less targets',
   { skip: isWindows },
   async () => {
     await withTempDir(async (dirPath) => {
@@ -64,7 +73,7 @@ test(
       const targetPath = path.join(projectDirectory, 'src', 'cli.ts');
       fs.mkdirSync(homeDirectory, { recursive: true });
       fs.mkdirSync(projectDirectory, { recursive: true });
-      const expectedTargetPath = fs.realpathSync.native(projectDirectory);
+      const expectedProjectPath = fs.realpathSync.native(projectDirectory);
 
       writeJSON(path.join(projectDirectory, 'package.json'), {
         name: 'sample-cli-project',
@@ -112,7 +121,10 @@ test(
         .readFileSync(argsFile, 'utf8')
         .trim()
         .split('\n');
-      assert.deepEqual(capturedArgs, [path.join(expectedTargetPath, 'src', 'cli.ts'), '--help']);
+      assert.deepEqual(capturedArgs, [
+        path.join(expectedProjectPath, 'src', 'cli.ts'),
+        '--help',
+      ]);
 
       child.kill('SIGTERM');
       await once(child, 'exit');

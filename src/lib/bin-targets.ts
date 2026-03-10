@@ -1,13 +1,18 @@
 import fs from 'node:fs';
 
+import { resolveInferredLauncher } from './launchers';
+import { hasShebang } from './shebang';
 import type { PreparedBinTarget } from './types';
-import { isTypeScriptTarget, resolveTsxRuntime } from './tsx-runtime';
 
 type BinTargetIssue = {
   name: string;
   target: string;
   reason: string;
   hint?: string;
+};
+
+type PrepareBinTargetsOptions = {
+  currentPath?: string | undefined;
 };
 
 function isExecutable(filePath: string): boolean {
@@ -56,14 +61,30 @@ function formatIssues(issues: BinTargetIssue[]): string {
     .join('\n');
 }
 
+function addUnsupportedWithoutShebangIssue(
+  issues: BinTargetIssue[],
+  name: string,
+  target: string,
+  reason?: string,
+): void {
+  const detail = reason ? ` (${reason})` : '';
+  issues.push({
+    name,
+    target,
+    reason: `not supported yet without shebang${detail}`,
+    hint:
+      'explicitly specify a shebang at the top of the target file to declare its runner',
+  });
+}
+
 export function prepareBinTargets(
   cwd: string,
   bin: Record<string, string>,
-  currentPath: string | undefined = process.env.PATH,
+  options: PrepareBinTargetsOptions = {},
 ): PreparedBinTarget[] {
+  const currentPath = options.currentPath ?? process.env.PATH;
   const preparedTargets: PreparedBinTarget[] = [];
   const issues: BinTargetIssue[] = [];
-  let resolvedTsxRuntime: string | null | undefined;
 
   for (const [name, target] of Object.entries(bin)) {
     if (!fs.existsSync(target)) {
@@ -96,17 +117,14 @@ export function prepareBinTargets(
       continue;
     }
 
-    if (isTypeScriptTarget(target)) {
-      if (resolvedTsxRuntime === undefined) {
-        resolvedTsxRuntime = resolveTsxRuntime(cwd, currentPath) ?? null;
-      }
-
-      if (!resolvedTsxRuntime) {
+    if (hasShebang(target)) {
+      const executableIssue = ensureExecutable(target, stats.mode);
+      if (executableIssue) {
         issues.push({
           name,
           target,
-          reason: 'tsx runtime could not be resolved for TypeScript target',
-          hint: 'install tsx in the project or make tsx available on PATH',
+          reason: executableIssue,
+          hint: `run: chmod +x ${target}`,
         });
         continue;
       }
@@ -114,27 +132,28 @@ export function prepareBinTargets(
       preparedTargets.push({
         name,
         target,
-        kind: 'tsx-launcher',
-        runtimeCommand: resolvedTsxRuntime,
+        kind: 'direct-link',
       });
       continue;
     }
 
-    const executableIssue = ensureExecutable(target, stats.mode);
-    if (executableIssue) {
-      issues.push({
-        name,
-        target,
-        reason: executableIssue,
-        hint: `run: chmod +x ${target}`,
-      });
+    const launcher = resolveInferredLauncher(cwd, target, currentPath);
+    if (!launcher) {
+      addUnsupportedWithoutShebangIssue(issues, name, target);
+      continue;
+    }
+
+    if ('reason' in launcher) {
+      addUnsupportedWithoutShebangIssue(issues, name, target, launcher.reason);
       continue;
     }
 
     preparedTargets.push({
       name,
       target,
-      kind: 'symlink',
+      kind: 'launcher',
+      launcherKind: launcher.launcherKind,
+      runtimeCommand: launcher.runtimeCommand,
     });
   }
 
@@ -146,7 +165,7 @@ export function prepareBinTargets(
     [
       'invalid bin targets:',
       formatIssues(issues),
-      'fix bin paths, runtime setup, or file permissions in package.json, symlx.config.json, or inline --bin and run again.',
+      'fix bin paths, launcher support, shebang declarations, or file permissions in package.json, symlx.config.json, or inline --bin and run again.',
     ].join('\n'),
   );
 }

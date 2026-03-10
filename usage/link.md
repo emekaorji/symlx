@@ -3,8 +3,6 @@
 `link` resolves bins, creates command entries, prints results, and exits immediately.
 Unlike `serve`, it does not keep a live session and does not auto-clean on process exit.
 
-JavaScript targets are linked directly. TypeScript targets are launched through generated `tsx` wrappers.
-
 ## Command
 
 ```bash
@@ -32,8 +30,8 @@ symlx link
 Expected outcome:
 
 - commands are created in your bin dir
-- JavaScript targets become symlinks
-- TypeScript targets become executable `tsx` launchers
+- shebang targets are linked directly
+- shebang-less supported targets use launchers automatically
 - process exits with status `0`
 
 ## Override One Command Inline
@@ -46,6 +44,29 @@ Expected outcome:
 
 - inline `admin` target is used based on normal precedence
 - command is linked once and remains until manually replaced/removed
+
+## Shebang-less Target Examples
+
+### JavaScript Target Without Shebang
+
+```bash
+symlx link --bin my-cli=dist/cli.js
+```
+
+Expected outcome:
+
+- symlx creates a Node launcher for the command
+
+### TypeScript Target Without Shebang
+
+```bash
+symlx link
+```
+
+Expected outcome:
+
+- symlx creates executable `tsx` launchers for supported TS targets
+- if `tsx` is missing, command fails early with manual-shebang guidance
 
 ## Collision Flows
 
@@ -114,9 +135,17 @@ Expected failure:
 - process exits `1`
 - error includes skipped command reasons and next action hint (`overwrite` or `fail`)
 
+### Unsupported Without Shebang
+
+If target has no shebang and symlx cannot support that launcher path yet:
+
+- process exits `1`
+- error tells you this is not supported yet without shebang
+- error tells you to explicitly specify shebang in target file
+
 ### Invalid Bin Target
 
-If a resolved bin target is missing, cannot be made executable, is a directory, or is TypeScript without `tsx` available:
+If a resolved bin target is missing, cannot be made executable, is a directory, or is unsupported in the no-shebang path:
 
 - process exits `1`
 - error tells the exact command and target issue
@@ -125,5 +154,6 @@ Recovery:
 
 1. build the target (`dist/...`)
 2. ensure the target file exists
-3. if the target is TypeScript, install `tsx` locally or make it available on `PATH`
-4. if permission repair still fails for JavaScript, set executable permission manually (`chmod +x`)
+3. add explicit shebang to target file when launcher path is unavailable
+4. if target is TypeScript and you prefer no-shebang flow, install `tsx` locally or make it available on `PATH`
+5. if permission repair still fails for direct-link targets, set executable permission manually (`chmod +x`)

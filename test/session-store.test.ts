@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 
+import { writeLauncher } from '../src/lib/launchers';
 import {
   cleanupLinks,
   cleanupStaleSessions,
@@ -12,8 +13,6 @@ import {
   ensureSymlxDirectories,
   persistSession,
 } from '../src/lib/session-store';
-import { writeTsxLauncher } from '../src/lib/tsx-runtime';
-
 import type { LinkRecord } from '../src/lib/types';
 
 function withTempDir(run: (dirPath: string) => void): void {
@@ -45,7 +44,7 @@ test('ensureSymlxDirectories creates bin and session directories', () => {
   });
 });
 
-test('cleanupLinks removes tracked symlink when target matches', { skip: isWindows }, () => {
+test('cleanupLinks removes tracked direct links when target matches', { skip: isWindows }, () => {
   withTempDir((dirPath) => {
     const target = path.join(dirPath, 'dist', 'cli.js');
     createExecutable(target);
@@ -55,7 +54,7 @@ test('cleanupLinks removes tracked symlink when target matches', { skip: isWindo
     fs.symlinkSync(target, linkPath);
 
     const links: LinkRecord[] = [
-      { name: 'my-cli', linkPath, target, kind: 'symlink' },
+      { name: 'my-cli', linkPath, target, kind: 'direct-link' },
     ];
     cleanupLinks(links);
 
@@ -63,7 +62,7 @@ test('cleanupLinks removes tracked symlink when target matches', { skip: isWindo
   });
 });
 
-test('cleanupLinks does not remove symlink when target mismatch', { skip: isWindows }, () => {
+test('cleanupLinks does not remove direct links when target mismatch', { skip: isWindows }, () => {
   withTempDir((dirPath) => {
     const expectedTarget = path.join(dirPath, 'dist', 'cli.js');
     const actualTarget = path.join(dirPath, 'dist', 'other.js');
@@ -75,7 +74,7 @@ test('cleanupLinks does not remove symlink when target mismatch', { skip: isWind
     fs.symlinkSync(actualTarget, linkPath);
 
     const links: LinkRecord[] = [
-      { name: 'my-cli', linkPath, target: expectedTarget, kind: 'symlink' },
+      { name: 'my-cli', linkPath, target: expectedTarget, kind: 'direct-link' },
     ];
     cleanupLinks(links);
 
@@ -83,7 +82,7 @@ test('cleanupLinks does not remove symlink when target mismatch', { skip: isWind
   });
 });
 
-test('cleanupLinks removes tracked tsx launcher when content matches', { skip: isWindows }, () => {
+test('cleanupLinks removes tracked launchers when content matches', { skip: isWindows }, () => {
   withTempDir((dirPath) => {
     const target = path.join(dirPath, 'src', 'cli.ts');
     const runtimeCommand = path.join(dirPath, 'node_modules', '.bin', 'tsx');
@@ -93,14 +92,15 @@ test('cleanupLinks removes tracked tsx launcher when content matches', { skip: i
 
     const linkPath = path.join(dirPath, 'bin', 'my-cli');
     fs.mkdirSync(path.dirname(linkPath), { recursive: true });
-    writeTsxLauncher(linkPath, runtimeCommand, target);
+    writeLauncher(linkPath, 'tsx', runtimeCommand, target);
 
     const links: LinkRecord[] = [
       {
         name: 'my-cli',
         linkPath,
         target,
-        kind: 'tsx-launcher',
+        kind: 'launcher',
+        launcherKind: 'tsx',
         runtimeCommand,
       },
     ];
@@ -110,7 +110,7 @@ test('cleanupLinks removes tracked tsx launcher when content matches', { skip: i
   });
 });
 
-test('cleanupLinks does not remove modified tsx launcher files', { skip: isWindows }, () => {
+test('cleanupLinks does not remove modified launcher files', { skip: isWindows }, () => {
   withTempDir((dirPath) => {
     const target = path.join(dirPath, 'src', 'cli.ts');
     const runtimeCommand = path.join(dirPath, 'node_modules', '.bin', 'tsx');
@@ -128,7 +128,8 @@ test('cleanupLinks does not remove modified tsx launcher files', { skip: isWindo
         name: 'my-cli',
         linkPath,
         target,
-        kind: 'tsx-launcher',
+        kind: 'launcher',
+        launcherKind: 'tsx',
         runtimeCommand,
       },
     ];
@@ -156,7 +157,7 @@ test('cleanupStaleSessions removes stale sessions and non-json files', { skip: i
       pid: -1,
       cwd: dirPath,
       createdAt: new Date().toISOString(),
-      links: [{ name: 'my-cli', linkPath, target, kind: 'symlink' }],
+      links: [{ name: 'my-cli', linkPath, target, kind: 'direct-link' }],
     });
 
     cleanupStaleSessions(sessionDir);
@@ -184,7 +185,7 @@ test('cleanupStaleSessions keeps active sessions for live pids', { skip: isWindo
       pid: process.pid,
       cwd: dirPath,
       createdAt: new Date().toISOString(),
-      links: [{ name: 'my-cli', linkPath, target, kind: 'symlink' }],
+      links: [{ name: 'my-cli', linkPath, target, kind: 'direct-link' }],
     });
 
     cleanupStaleSessions(sessionDir);
@@ -206,7 +207,7 @@ test('generateSessionFilePath creates json path inside session dir', () => {
 
 test('generateSessionRecord uses current pid and provided values', () => {
   const links: LinkRecord[] = [
-    { name: 'tool', linkPath: '/tmp/tool', target: '/tmp/cli.js', kind: 'symlink' },
+    { name: 'tool', linkPath: '/tmp/tool', target: '/tmp/cli.js', kind: 'direct-link' },
   ];
   const cwd = '/tmp/project';
   const record = generateSessionRecord(cwd, links);

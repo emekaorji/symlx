@@ -383,7 +383,15 @@ Outcome:
 - early runtime validation error telling you this path is not supported yet without shebang
 - message still guides manual shebang declaration
 
-## 27) Invalid config for non-critical keys
+## 27) TypeScript target with node shebang
+
+Outcome:
+
+- early runtime validation error
+- message says this target is not directly runnable
+- recovery tells you to use `#!/usr/bin/env tsx` or remove shebang for launcher inference
+
+## 28) Invalid config for non-critical keys
 
 `symlx.config.json`:
 
@@ -399,7 +407,7 @@ Outcome:
 - warning logs
 - defaults applied
 
-## 28) Invalid config for critical key (`binDir`)
+## 29) Invalid config for critical key (`binDir`)
 
 Outcome:
 
@@ -407,7 +415,7 @@ Outcome:
 
 ## Lifecycle Scenarios
 
-## 29) Controlled exit
+## 30) Controlled exit
 
 Stop with `Ctrl+C`.
 
@@ -416,7 +424,7 @@ Outcome:
 - active session links removed
 - session metadata file removed
 
-## 30) Stale crash recovery
+## 31) Stale crash recovery
 
 Previous run crashed and left stale session metadata.
 
@@ -434,6 +442,11 @@ Outcome:
 ## "not supported yet without shebang"
 
 - add shebang to target file to declare runner explicitly
+
+## "typescript target uses node shebang and is not directly runnable"
+
+- update target shebang to `#!/usr/bin/env tsx`
+- or remove shebang and let symlx infer launcher by file type
 
 ## "no bin entries found"
 

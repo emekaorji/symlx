@@ -203,6 +203,7 @@ Current launcher inference:
 
 - `.js`, `.mjs`, `.cjs` -> Node launcher
 - `.ts`, `.tsx`, `.mts`, `.cts` -> `tsx` launcher
+- if a TypeScript target declares `#!/usr/bin/env node`, symlx fails early and tells you to use `tsx` shebang or remove shebang for launcher inference
 
 TypeScript runtime resolution order is:
 
@@ -286,6 +287,11 @@ symlx serve --collision fail
 ## "tsx runtime could not be resolved for target"
 
 Install `tsx` in the project or make `tsx` available on `PATH`.
+
+## "typescript target uses node shebang and is not directly runnable"
+
+- replace shebang with `#!/usr/bin/env tsx`
+- or remove shebang and let symlx infer launcher by file type
 
 ## "package.json not found"
 

@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { matchesLauncher } from './launchers';
 import type { LinkRecord, SessionRecord } from './types';
 import * as log from '../ui/logger';
-import { matchesTsxLauncher } from './tsx-runtime';
 import { deleteFile, loadJSONFile } from './utils';
 
 // Checks whether a PID from a previous session is still alive.
@@ -25,7 +25,7 @@ function isProcessAlive(pid: number): boolean {
   }
 }
 
-function cleanupSymlink(link: Extract<LinkRecord, { kind: 'symlink' }>): void {
+function cleanupDirectLink(link: Extract<LinkRecord, { kind: 'direct-link' }>): void {
   const stats = fs.lstatSync(link.linkPath);
   if (!stats.isSymbolicLink()) {
     return;
@@ -38,15 +38,20 @@ function cleanupSymlink(link: Extract<LinkRecord, { kind: 'symlink' }>): void {
   }
 }
 
-function cleanupTsxLauncher(
-  link: Extract<LinkRecord, { kind: 'tsx-launcher' }>,
-): void {
+function cleanupLauncher(link: Extract<LinkRecord, { kind: 'launcher' }>): void {
   const stats = fs.lstatSync(link.linkPath);
   if (stats.isSymbolicLink() || !stats.isFile()) {
     return;
   }
 
-  if (matchesTsxLauncher(link.linkPath, link.runtimeCommand, link.target)) {
+  if (
+    matchesLauncher(
+      link.linkPath,
+      link.launcherKind,
+      link.runtimeCommand,
+      link.target,
+    )
+  ) {
     fs.unlinkSync(link.linkPath);
   }
 }
@@ -56,12 +61,12 @@ function cleanupTsxLauncher(
 export function cleanupLinks(links: LinkRecord[]): void {
   for (const link of links) {
     try {
-      if (link.kind === 'symlink') {
-        cleanupSymlink(link);
+      if (link.kind === 'direct-link') {
+        cleanupDirectLink(link);
         continue;
       }
 
-      cleanupTsxLauncher(link);
+      cleanupLauncher(link);
     } catch {
       // Best-effort cleanup.
     }

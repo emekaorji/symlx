@@ -14,9 +14,18 @@ function withTempDir(run: (dirPath: string) => void): void {
   }
 }
 
-function writeTarget(filePath: string, mode: number): void {
+function writeTarget(
+  filePath: string,
+  {
+    content = '#!/usr/bin/env node\nconsole.log("ok")\n',
+    mode = 0o755,
+  }: {
+    content?: string;
+    mode?: number;
+  } = {},
+): void {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, '#!/usr/bin/env node\nconsole.log("ok")\n');
+  fs.writeFileSync(filePath, content);
   fs.chmodSync(filePath, mode);
 }
 
@@ -57,19 +66,19 @@ function runCli(
   });
 }
 
-test('cli help shows the link command', () => {
-  const result = runCli(['--help'], process.cwd());
+const isWindows = process.platform === 'win32';
+
+test('cli help shows the link command and does not expose shebang toggle flag', () => {
+  const result = runCli(['link', '--help'], process.cwd());
   const stdout = String(result.stdout);
 
   assert.equal(result.status, 0);
-  assert.match(stdout, /\bserve\b/);
   assert.match(stdout, /\blink\b/);
+  assert.doesNotMatch(stdout, /--no-require-shebang/);
 });
 
-const isWindows = process.platform === 'win32';
-
 test(
-  'link creates project JavaScript command entries and exits without writing a session record',
+  'link creates direct command entries for shebang-bearing JavaScript targets and exits without writing a session record',
   { skip: isWindows },
   () => {
     withTempDir((dirPath) => {
@@ -85,7 +94,7 @@ test(
         },
       });
 
-      writeTarget(path.join(projectDirectory, 'dist', 'cli.js'), 0o755);
+      writeTarget(path.join(projectDirectory, 'dist', 'cli.js'));
 
       const result = runCli(
         ['link', '--collision', 'overwrite'],
@@ -112,7 +121,7 @@ test(
 );
 
 test(
-  'link makes non-executable JavaScript targets executable before linking',
+  'link uses node launcher by default for JavaScript targets without a shebang',
   { skip: isWindows },
   () => {
     withTempDir((dirPath) => {
@@ -129,7 +138,52 @@ test(
         },
       });
 
-      writeTarget(targetPath, 0o644);
+      writeTarget(targetPath, {
+        content: 'console.log("ok")\n',
+        mode: 0o644,
+      });
+
+      const result = runCli(['link', '--collision', 'overwrite'], projectDirectory, {
+        homeDirectory,
+      });
+
+      assert.equal(
+        result.status,
+        0,
+        `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
+      );
+
+      const linkPath = path.join(homeDirectory, '.symlx', 'bin', 'sample-cli');
+      const stats = fs.lstatSync(linkPath);
+      assert.equal(stats.isSymbolicLink(), false);
+      assert.equal(stats.isFile(), true);
+      fs.accessSync(linkPath, fs.constants.X_OK);
+    });
+  },
+);
+
+test(
+  'link makes shebang-bearing JavaScript targets executable before linking',
+  { skip: isWindows },
+  () => {
+    withTempDir((dirPath) => {
+      const homeDirectory = path.join(dirPath, 'home');
+      const projectDirectory = path.join(dirPath, 'project');
+      const targetPath = path.join(projectDirectory, 'dist', 'cli.js');
+      fs.mkdirSync(homeDirectory, { recursive: true });
+      fs.mkdirSync(projectDirectory, { recursive: true });
+
+      writeJSON(path.join(projectDirectory, 'package.json'), {
+        name: 'sample-cli-project',
+        bin: {
+          'sample-cli': './dist/cli.js',
+        },
+      });
+
+      writeTarget(targetPath, {
+        content: '#!/usr/bin/env node\nconsole.log("ok")\n',
+        mode: 0o644,
+      });
 
       const result = runCli(
         ['link', '--collision', 'overwrite'],
@@ -151,7 +205,7 @@ test(
 );
 
 test(
-  'link creates tsx launchers for TypeScript targets and executes them through local tsx',
+  'link creates tsx launchers for TypeScript targets without shebang by default',
   { skip: isWindows },
   () => {
     withTempDir((dirPath) => {
@@ -161,7 +215,7 @@ test(
       const targetPath = path.join(projectDirectory, 'src', 'cli.ts');
       fs.mkdirSync(homeDirectory, { recursive: true });
       fs.mkdirSync(projectDirectory, { recursive: true });
-      const expectedTargetPath = fs.realpathSync.native(projectDirectory);
+      const expectedProjectPath = fs.realpathSync.native(projectDirectory);
 
       writeJSON(path.join(projectDirectory, 'package.json'), {
         name: 'sample-cli-project',
@@ -170,7 +224,10 @@ test(
         },
       });
 
-      writeTarget(targetPath, 0o644);
+      writeTarget(targetPath, {
+        content: 'console.log("ok")\n',
+        mode: 0o644,
+      });
       writeTsxStub(projectDirectory);
 
       const result = runCli(
@@ -212,7 +269,43 @@ test(
         .readFileSync(argsFile, 'utf8')
         .trim()
         .split('\n');
-      assert.deepEqual(capturedArgs, [path.join(expectedTargetPath, 'src', 'cli.ts'), '--flag', 'value']);
+      assert.deepEqual(capturedArgs, [
+        path.join(expectedProjectPath, 'src', 'cli.ts'),
+        '--flag',
+        'value',
+      ]);
+    });
+  },
+);
+
+test(
+  'link fails with manual-shebang guidance when a shebang-less target type is not supported yet',
+  { skip: isWindows },
+  () => {
+    withTempDir((dirPath) => {
+      const homeDirectory = path.join(dirPath, 'home');
+      const projectDirectory = path.join(dirPath, 'project');
+      const targetPath = path.join(projectDirectory, 'scripts', 'tool.py');
+      fs.mkdirSync(homeDirectory, { recursive: true });
+      fs.mkdirSync(projectDirectory, { recursive: true });
+
+      writeJSON(path.join(projectDirectory, 'package.json'), {
+        name: 'sample-cli-project',
+        bin: {
+          tool: './scripts/tool.py',
+        },
+      });
+
+      writeTarget(targetPath, {
+        content: 'print("ok")\n',
+        mode: 0o644,
+      });
+
+      const result = runCli(['link'], projectDirectory, { homeDirectory });
+
+      assert.equal(result.status, 1);
+      assert.match(String(result.stderr), /not supported yet without shebang/);
+      assert.match(String(result.stderr), /explicitly specify a shebang/);
     });
   },
 );

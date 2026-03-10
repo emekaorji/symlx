@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { matchesLauncher, writeLauncher } from './launchers';
 import type {
   CollisionDecision,
   LinkConflict,
@@ -9,7 +10,6 @@ import type {
   PreparedBinTarget,
 } from './types';
 import { CollisionOption } from './schema';
-import { matchesTsxLauncher, writeTsxLauncher } from './tsx-runtime';
 import { promptCollisionResolver } from '../ui/prompts';
 
 type ExistingNode = {
@@ -65,7 +65,7 @@ function matchesPreparedTarget(
   entry: PreparedBinTarget,
   existingNode: ExistingNode,
 ): boolean {
-  if (entry.kind === 'symlink') {
+  if (entry.kind === 'direct-link') {
     return Boolean(
       existingNode.existingTarget &&
         path.resolve(existingNode.existingTarget) === path.resolve(entry.target),
@@ -76,26 +76,37 @@ function matchesPreparedTarget(
     return false;
   }
 
-  return matchesTsxLauncher(linkPath, entry.runtimeCommand, entry.target);
+  return matchesLauncher(
+    linkPath,
+    entry.launcherKind,
+    entry.runtimeCommand,
+    entry.target,
+  );
 }
 
 function createCommandEntry(linkPath: string, entry: PreparedBinTarget): LinkRecord {
-  if (entry.kind === 'symlink') {
+  if (entry.kind === 'direct-link') {
     fs.symlinkSync(entry.target, linkPath);
     return {
       name: entry.name,
       linkPath,
       target: entry.target,
-      kind: 'symlink',
+      kind: 'direct-link',
     };
   }
 
-  writeTsxLauncher(linkPath, entry.runtimeCommand, entry.target);
+  writeLauncher(
+    linkPath,
+    entry.launcherKind,
+    entry.runtimeCommand,
+    entry.target,
+  );
   return {
     name: entry.name,
     linkPath,
     target: entry.target,
-    kind: 'tsx-launcher',
+    kind: 'launcher',
+    launcherKind: entry.launcherKind,
     runtimeCommand: entry.runtimeCommand,
   };
 }

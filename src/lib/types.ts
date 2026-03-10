@@ -4,16 +4,19 @@ export type PackageJson = {
   bin?: string | Record<string, string>;
 };
 
+export type LauncherKind = 'node' | 'tsx';
+
 export type PreparedBinTarget =
   | {
       name: string;
       target: string;
-      kind: 'symlink';
+      kind: 'direct-link';
     }
   | {
       name: string;
       target: string;
-      kind: 'tsx-launcher';
+      kind: 'launcher';
+      launcherKind: LauncherKind;
       runtimeCommand: string;
     };
 
@@ -23,13 +26,14 @@ export type LinkRecord =
       name: string;
       linkPath: string;
       target: string;
-      kind: 'symlink';
+      kind: 'direct-link';
     }
   | {
       name: string;
       linkPath: string;
       target: string;
-      kind: 'tsx-launcher';
+      kind: 'launcher';
+      launcherKind: LauncherKind;
       runtimeCommand: string;
     };
 

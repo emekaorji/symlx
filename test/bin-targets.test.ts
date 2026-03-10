@@ -15,9 +15,18 @@ function withTempDir(run: (dirPath: string) => void): void {
   }
 }
 
-function writeTarget(filePath: string, mode = 0o644): void {
+function writeTarget(
+  filePath: string,
+  {
+    content = 'console.log("ok")\n',
+    mode = 0o644,
+  }: {
+    content?: string;
+    mode?: number;
+  } = {},
+): void {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, '#!/usr/bin/env node\nconsole.log("ok")\n');
+  fs.writeFileSync(filePath, content);
   fs.chmodSync(filePath, mode);
 }
 
@@ -33,7 +42,7 @@ test('rejects missing target files', () => {
   withTempDir((dirPath) => {
     const missingTarget = path.join(dirPath, 'dist', 'cli.js');
     assert.throws(
-      () => prepareBinTargets(dirPath, { 'my-cli': missingTarget }, ''),
+      () => prepareBinTargets(dirPath, { 'my-cli': missingTarget }),
       /target file does not exist/,
     );
   });
@@ -45,67 +54,118 @@ test('rejects directory targets', () => {
     fs.mkdirSync(targetDirectory, { recursive: true });
 
     assert.throws(
-      () => prepareBinTargets(dirPath, { 'my-cli': targetDirectory }, ''),
+      () => prepareBinTargets(dirPath, { 'my-cli': targetDirectory }),
       /target is a directory/,
     );
   });
 });
 
-test('prepares executable JavaScript targets as symlinks', () => {
+test('links shebang-bearing targets directly', () => {
   withTempDir((dirPath) => {
     const filePath = path.join(dirPath, 'cli.js');
-    writeTarget(filePath, 0o755);
+    writeTarget(filePath, {
+      content: '#!/usr/bin/env node\nconsole.log("ok")\n',
+      mode: 0o755,
+    });
 
-    const result = prepareBinTargets(dirPath, { 'my-cli': filePath }, '');
+    const result = prepareBinTargets(dirPath, { 'my-cli': filePath });
     assert.deepEqual(result, [
-      { name: 'my-cli', target: filePath, kind: 'symlink' },
+      { name: 'my-cli', target: filePath, kind: 'direct-link' },
     ]);
   });
 });
 
-test('makes non-executable JavaScript targets executable on unix-like systems', () => {
+test('makes shebang-bearing targets executable on unix-like systems', () => {
   if (process.platform === 'win32') {
     return;
   }
 
   withTempDir((dirPath) => {
     const filePath = path.join(dirPath, 'cli.js');
-    writeTarget(filePath, 0o644);
+    writeTarget(filePath, {
+      content: '#!/usr/bin/env node\nconsole.log("ok")\n',
+      mode: 0o644,
+    });
 
-    const result = prepareBinTargets(dirPath, { 'my-cli': filePath }, '');
+    const result = prepareBinTargets(dirPath, { 'my-cli': filePath });
     assert.deepEqual(result, [
-      { name: 'my-cli', target: filePath, kind: 'symlink' },
+      { name: 'my-cli', target: filePath, kind: 'direct-link' },
     ]);
     fs.accessSync(filePath, fs.constants.X_OK);
   });
 });
 
-test('prepares TypeScript targets as tsx launchers', () => {
+test('infers node launcher for JavaScript targets without a shebang', () => {
+  withTempDir((dirPath) => {
+    const filePath = path.join(dirPath, 'cli.js');
+    writeTarget(filePath);
+
+    const result = prepareBinTargets(dirPath, { 'my-cli': filePath });
+
+    assert.deepEqual(result, [
+      {
+        name: 'my-cli',
+        target: filePath,
+        kind: 'launcher',
+        launcherKind: 'node',
+        runtimeCommand: process.execPath,
+      },
+    ]);
+  });
+});
+
+test('infers tsx launcher for TypeScript targets without a shebang', () => {
   withTempDir((dirPath) => {
     const targetPath = path.join(dirPath, 'src', 'cli.ts');
-    writeTarget(targetPath, 0o644);
+    writeTarget(targetPath);
     const runtimeCommand = writeTsxBinary(dirPath);
 
-    const result = prepareBinTargets(dirPath, { 'my-cli': targetPath }, '');
+    const result = prepareBinTargets(dirPath, { 'my-cli': targetPath });
+
     assert.deepEqual(result, [
       {
         name: 'my-cli',
         target: targetPath,
-        kind: 'tsx-launcher',
+        kind: 'launcher',
+        launcherKind: 'tsx',
         runtimeCommand,
       },
     ]);
   });
 });
 
-test('rejects TypeScript targets when tsx cannot be resolved', () => {
+test('rejects unsupported targets without shebang with manual-shebang guidance', () => {
   withTempDir((dirPath) => {
-    const targetPath = path.join(dirPath, 'src', 'cli.ts');
-    writeTarget(targetPath, 0o644);
+    const targetPath = path.join(dirPath, 'scripts', 'cli.py');
+    writeTarget(targetPath);
 
     assert.throws(
-      () => prepareBinTargets(dirPath, { 'my-cli': targetPath }, ''),
-      /tsx runtime could not be resolved/,
+      () => prepareBinTargets(dirPath, { 'my-cli': targetPath }),
+      /not supported yet without shebang/,
+    );
+
+    assert.throws(
+      () => prepareBinTargets(dirPath, { 'my-cli': targetPath }),
+      /explicitly specify a shebang/,
+    );
+  });
+});
+
+test('rejects TypeScript target when tsx runtime is unavailable and no shebang exists', () => {
+  withTempDir((dirPath) => {
+    const targetPath = path.join(dirPath, 'src', 'cli.ts');
+    writeTarget(targetPath);
+
+    assert.throws(
+      () =>
+        prepareBinTargets(dirPath, { 'my-cli': targetPath }, { currentPath: '' }),
+      /not supported yet without shebang/,
+    );
+
+    assert.throws(
+      () =>
+        prepareBinTargets(dirPath, { 'my-cli': targetPath }, { currentPath: '' }),
+      /explicitly specify a shebang/,
     );
   });
 });

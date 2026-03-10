@@ -143,6 +143,14 @@ If target has no shebang and symlx cannot support that launcher path yet:
 - error tells you this is not supported yet without shebang
 - error tells you to explicitly specify shebang in target file
 
+### TypeScript Target Uses Node Shebang
+
+If a `.ts`/`.tsx`/`.mts`/`.cts` target file declares a `node` shebang:
+
+- process exits `1`
+- error tells you this target is not directly runnable
+- error tells you to use `#!/usr/bin/env tsx` or remove shebang for launcher inference
+
 ### Invalid Bin Target
 
 If a resolved bin target is missing, cannot be made executable, is a directory, or is unsupported in the no-shebang path:

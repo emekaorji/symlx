@@ -1,7 +1,8 @@
 import fs from 'node:fs';
+import path from 'node:path';
 
 import { resolveInferredLauncher } from './launchers';
-import { hasShebang } from './shebang';
+import { readShebang, extractShebangRuntime } from './shebang';
 import type { PreparedBinTarget } from './types';
 
 type BinTargetIssue = {
@@ -14,6 +15,8 @@ type BinTargetIssue = {
 type PrepareBinTargetsOptions = {
   currentPath?: string | undefined;
 };
+
+const TYPESCRIPT_TARGET_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts']);
 
 function isExecutable(filePath: string): boolean {
   if (process.platform === 'win32') {
@@ -77,6 +80,27 @@ function addUnsupportedWithoutShebangIssue(
   });
 }
 
+function isTypeScriptTarget(targetPath: string): boolean {
+  return TYPESCRIPT_TARGET_EXTENSIONS.has(
+    path.extname(targetPath).toLowerCase(),
+  );
+}
+
+function addInvalidTypeScriptNodeShebangIssue(
+  issues: BinTargetIssue[],
+  name: string,
+  target: string,
+): void {
+  issues.push({
+    name,
+    target,
+    reason:
+      'typescript target uses node shebang and is not directly runnable',
+    hint:
+      'use #!/usr/bin/env tsx or remove shebang to use launcher inference',
+  });
+}
+
 export function prepareBinTargets(
   cwd: string,
   bin: Record<string, string>,
@@ -117,7 +141,14 @@ export function prepareBinTargets(
       continue;
     }
 
-    if (hasShebang(target)) {
+    const shebang = readShebang(target);
+    if (shebang) {
+      const shebangRuntime = extractShebangRuntime(shebang);
+      if (isTypeScriptTarget(target) && shebangRuntime === 'node') {
+        addInvalidTypeScriptNodeShebangIssue(issues, name, target);
+        continue;
+      }
+
       const executableIssue = ensureExecutable(target, stats.mode);
       if (executableIssue) {
         issues.push({

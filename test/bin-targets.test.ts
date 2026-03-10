@@ -134,6 +134,26 @@ test('infers tsx launcher for TypeScript targets without a shebang', () => {
   });
 });
 
+test('rejects TypeScript targets with node shebang and guides recovery', () => {
+  withTempDir((dirPath) => {
+    const targetPath = path.join(dirPath, 'src', 'cli.ts');
+    writeTarget(targetPath, {
+      content: '#!/usr/bin/env node\nconsole.log("ok")\n',
+      mode: 0o755,
+    });
+
+    assert.throws(
+      () => prepareBinTargets(dirPath, { 'my-cli': targetPath }),
+      /typescript target uses node shebang and is not directly runnable/,
+    );
+
+    assert.throws(
+      () => prepareBinTargets(dirPath, { 'my-cli': targetPath }),
+      /use #!\/usr\/bin\/env tsx or remove shebang to use launcher inference/,
+    );
+  });
+});
+
 test('rejects unsupported targets without shebang with manual-shebang guidance', () => {
   withTempDir((dirPath) => {
     const targetPath = path.join(dirPath, 'scripts', 'cli.py');

@@ -279,6 +279,44 @@ test(
 );
 
 test(
+  'link fails early for TypeScript targets using node shebang',
+  { skip: isWindows },
+  () => {
+    withTempDir((dirPath) => {
+      const homeDirectory = path.join(dirPath, 'home');
+      const projectDirectory = path.join(dirPath, 'project');
+      const targetPath = path.join(projectDirectory, 'src', 'cli.ts');
+      fs.mkdirSync(homeDirectory, { recursive: true });
+      fs.mkdirSync(projectDirectory, { recursive: true });
+
+      writeJSON(path.join(projectDirectory, 'package.json'), {
+        name: 'sample-cli-project',
+        bin: {
+          'sample-cli': './src/cli.ts',
+        },
+      });
+
+      writeTarget(targetPath, {
+        content: '#!/usr/bin/env node\nconsole.log("ok")\n',
+        mode: 0o755,
+      });
+
+      const result = runCli(['link'], projectDirectory, { homeDirectory });
+
+      assert.equal(result.status, 1);
+      assert.match(
+        String(result.stderr),
+        /typescript target uses node shebang and is not directly runnable/,
+      );
+      assert.match(
+        String(result.stderr),
+        /use #!\/usr\/bin\/env tsx or remove shebang to use launcher inference/,
+      );
+    });
+  },
+);
+
+test(
   'link fails with manual-shebang guidance when a shebang-less target type is not supported yet',
   { skip: isWindows },
   () => {

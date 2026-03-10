@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import type { LinkRecord, SessionRecord } from './types';
 import * as log from '../ui/logger';
+import { matchesTsxLauncher } from './tsx-runtime';
 import { deleteFile, loadJSONFile } from './utils';
 
 // Checks whether a PID from a previous session is still alive.
@@ -24,24 +25,43 @@ function isProcessAlive(pid: number): boolean {
   }
 }
 
-// Removes only symlinks that still point to the exact targets we created.
+function cleanupSymlink(link: Extract<LinkRecord, { kind: 'symlink' }>): void {
+  const stats = fs.lstatSync(link.linkPath);
+  if (!stats.isSymbolicLink()) {
+    return;
+  }
+
+  const linkedTo = fs.readlinkSync(link.linkPath);
+  const absoluteLinkedTo = path.resolve(path.dirname(link.linkPath), linkedTo);
+  if (absoluteLinkedTo === path.resolve(link.target)) {
+    fs.unlinkSync(link.linkPath);
+  }
+}
+
+function cleanupTsxLauncher(
+  link: Extract<LinkRecord, { kind: 'tsx-launcher' }>,
+): void {
+  const stats = fs.lstatSync(link.linkPath);
+  if (stats.isSymbolicLink() || !stats.isFile()) {
+    return;
+  }
+
+  if (matchesTsxLauncher(link.linkPath, link.runtimeCommand, link.target)) {
+    fs.unlinkSync(link.linkPath);
+  }
+}
+
+// Removes only command entries that still match the exact records we created.
 // This avoids deleting user-managed commands with the same name.
 export function cleanupLinks(links: LinkRecord[]): void {
   for (const link of links) {
     try {
-      const stats = fs.lstatSync(link.linkPath);
-      if (!stats.isSymbolicLink()) {
+      if (link.kind === 'symlink') {
+        cleanupSymlink(link);
         continue;
       }
 
-      const linkedTo = fs.readlinkSync(link.linkPath);
-      const absoluteLinkedTo = path.resolve(
-        path.dirname(link.linkPath),
-        linkedTo,
-      );
-      if (absoluteLinkedTo === path.resolve(link.target)) {
-        fs.unlinkSync(link.linkPath);
-      }
+      cleanupTsxLauncher(link);
     } catch {
       // Best-effort cleanup.
     }
@@ -57,7 +77,7 @@ export function ensureSymlxDirectories(
   fs.mkdirSync(sessionDir, { recursive: true });
 }
 
-// Reaps stale sessions left behind by crashes/kill -9 and removes their symlinks.
+// Reaps stale sessions left behind by crashes/kill -9 and removes their command entries.
 export function cleanupStaleSessions(sessionDir: string): void {
   // If the directory does not exist, return early
   if (!fs.existsSync(sessionDir)) {

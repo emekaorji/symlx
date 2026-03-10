@@ -27,10 +27,10 @@ export async function linkCommand(inlineOptions: unknown): Promise<void> {
 
   cleanupStaleSessions(sessionDir);
   ensureSymlxDirectories(options.binDir, sessionDir);
-  prepareBinTargets(options.bin);
+  const preparedTargets = prepareBinTargets(cwd, options.bin);
 
   const linkResult = await createLinks(
-    options.bin,
+    preparedTargets,
     options.binDir,
     internalCollisionOption,
   );

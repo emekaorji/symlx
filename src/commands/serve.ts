@@ -39,11 +39,11 @@ export async function serveCommand(inlineOptions: unknown): Promise<void> {
   // prepare
   cleanupStaleSessions(sessionDir);
   ensureSymlxDirectories(options.binDir, sessionDir);
-  prepareBinTargets(options.bin);
+  const preparedTargets = prepareBinTargets(cwd, options.bin);
 
   // link creation
   const linkResult = await createLinks(
-    options.bin,
+    preparedTargets,
     options.binDir,
     internalCollisionOption,
   );

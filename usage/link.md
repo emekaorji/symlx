@@ -1,7 +1,9 @@
 # `link` Usage Scenarios
 
-`link` resolves bins, creates command symlinks, prints results, and exits immediately.
+`link` resolves bins, creates command entries, prints results, and exits immediately.
 Unlike `serve`, it does not keep a live session and does not auto-clean on process exit.
+
+JavaScript targets are linked directly. TypeScript targets are launched through generated `tsx` wrappers.
 
 ## Command
 
@@ -29,8 +31,9 @@ symlx link
 
 Expected outcome:
 
-- commands are linked into your bin dir
-- command mapping is printed
+- commands are created in your bin dir
+- JavaScript targets become symlinks
+- TypeScript targets become executable `tsx` launchers
 - process exits with status `0`
 
 ## Override One Command Inline
@@ -113,7 +116,7 @@ Expected failure:
 
 ### Invalid Bin Target
 
-If a resolved bin target is missing, cannot be made executable, or is a directory:
+If a resolved bin target is missing, cannot be made executable, is a directory, or is TypeScript without `tsx` available:
 
 - process exits `1`
 - error tells the exact command and target issue
@@ -122,4 +125,5 @@ Recovery:
 
 1. build the target (`dist/...`)
 2. ensure the target file exists
-3. if permission repair fails, set executable permission manually (`chmod +x`)
+3. if the target is TypeScript, install `tsx` locally or make it available on `PATH`
+4. if permission repair still fails for JavaScript, set executable permission manually (`chmod +x`)

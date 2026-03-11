@@ -3,6 +3,18 @@
   "version": "0.1.12",
   "description": "Temporary local CLI bin linker",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/emekaorji/symlx.git"
+  },
+  "homepage": "https://github.com/emekaorji/symlx#readme",
+  "bugs": {
+    "url": "https://github.com/emekaorji/symlx/issues"
+  },
+  "preferGlobal": true,
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "symlx": "dist/cli.js",
     "cx": "dist/cli.js"
@@ -23,7 +35,13 @@
   "keywords": [
     "cli",
     "bin",
-    "dev"
+    "command-linker",
+    "local-cli",
+    "developer-tooling",
+    "symlink",
+    "typescript",
+    "nodejs",
+    "npm-link"
   ],
   "engines": {
     "node": ">=18.0.0"

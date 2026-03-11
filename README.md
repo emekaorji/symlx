@@ -14,7 +14,7 @@ In a CLI project with:
 run:
 
 ```bash
-symlx link
+symlx serve
 ```
 
 Then use your CLI normally:
@@ -23,7 +23,7 @@ Then use your CLI normally:
 awesome-cli --help
 ```
 
-Use `symlx serve` when you want temporary session-scoped links with auto-cleanup on exit.
+Use `symlx link` when you want one-shot linking without keeping a live file-watcher session open.
 
 ---
 

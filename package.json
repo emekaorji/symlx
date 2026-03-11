@@ -1,6 +1,6 @@
 {
   "name": "symlx",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "Temporary local CLI bin linker",
   "license": "MIT",
   "repository": {
